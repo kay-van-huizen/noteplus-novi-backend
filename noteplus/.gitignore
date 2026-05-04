@@ -1,4 +1,5 @@
 HELP.md
+application.properties
 uploads/
 target/
 .mvn/wrapper/maven-wrapper.jar
