@@ -1,80 +1,70 @@
 ---
-description: Maakt de GlobalExceptionHandler aan met alle benodigde exception handlers voor het NotePlus project. Geen argumenten nodig.
+description: Creates GlobalExceptionHandler + missing exception classes for NotePlus.
 allowed-tools: Read, Write, Glob
 ---
 
-# GlobalExceptionHandler Aanmaken
+# GlobalExceptionHandler — NotePlus
 
-Maak de centrale exception handling voor NotePlus aan.
-Dit is vereist door de schoolopdracht (criterium 3.3).
+Read all files in `src/main/java/org/noteplus/noteplus/exception/` first.
 
-## Stap 1 — Maak de custom exceptions
+## Step 1 — Create missing exception classes
 
-Maak in `src/main/java/org/noteplus/noteplus/exception/`:
-
-**ResourceNotFoundException.java**
+Create `exception/ResourceNotFoundException.java`:
 ```java
+package org.noteplus.noteplus.exception;
 public class ResourceNotFoundException extends RuntimeException {
-    public ResourceNotFoundException(String message) {
-        super(message);
-    }
+    public ResourceNotFoundException(String message) { super(message); }
 }
 ```
 
-**AccessDeniedException.java** (als Spring's versie niet volstaat)
+Rename `exception/AccessDeniedException.java` to `exception/ForbiddenException.java`:
 ```java
-public class AccessDeniedException extends RuntimeException {
-    public AccessDeniedException(String message) {
-        super(message);
-    }
+package org.noteplus.noteplus.exception;
+public class ForbiddenException extends RuntimeException {
+    public ForbiddenException(String message) { super(message); }
 }
 ```
 
-**DuplicateResourceException.java**
+Update any class that imports or throws `AccessDeniedException` from this package to use `ForbiddenException` instead.
+
+## Step 2 — Create ErrorResponse DTO
+
+`dto/response/ErrorResponse.java`:
 ```java
-public class DuplicateResourceException extends RuntimeException {
-    public DuplicateResourceException(String message) {
-        super(message);
-    }
-}
+public record ErrorResponse(int status, String error, String message, LocalDateTime timestamp) {}
 ```
 
-## Stap 2 — Maak een ErrorResponse DTO
+## Step 3 — Create GlobalExceptionHandler
 
-`src/main/java/org/noteplus/noteplus/dto/response/ErrorResponse.java`
-```java
-public record ErrorResponse(
-    int status,
-    String error,
-    String message,
-    LocalDateTime timestamp
-) {}
-```
-
-## Stap 3 — Maak de GlobalExceptionHandler
-
-`src/main/java/org/noteplus/noteplus/exception/GlobalExceptionHandler.java`
-
+`exception/GlobalExceptionHandler.java`:
 ```java
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(DuplicateResourceException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicate(DuplicateResourceException ex) {
+        return ResponseEntity.status(409)
+            .body(new ErrorResponse(409, "Conflict", ex.getMessage(), LocalDateTime.now()));
+    }
+
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(ResourceNotFoundException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+        return ResponseEntity.status(404)
             .body(new ErrorResponse(404, "Not Found", ex.getMessage(), LocalDateTime.now()));
     }
 
-    @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<ErrorResponse> handleForbidden(ForbiddenException ex) {
+        return ResponseEntity.status(403)
             .body(new ErrorResponse(403, "Forbidden", ex.getMessage(), LocalDateTime.now()));
     }
 
-    @ExceptionHandler(DuplicateResourceException.class)
-    public ResponseEntity<ErrorResponse> handleDuplicate(DuplicateResourceException ex) {
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-            .body(new ErrorResponse(409, "Conflict", ex.getMessage(), LocalDateTime.now()));
+    // Catches Spring Security's @PreAuthorize violations
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleSpringAccessDenied(
+            org.springframework.security.access.AccessDeniedException ex) {
+        return ResponseEntity.status(403)
+            .body(new ErrorResponse(403, "Forbidden", "Access denied", LocalDateTime.now()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -82,18 +72,16 @@ public class GlobalExceptionHandler {
         String message = ex.getBindingResult().getFieldErrors().stream()
             .map(e -> e.getField() + ": " + e.getDefaultMessage())
             .collect(Collectors.joining(", "));
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+        return ResponseEntity.status(400)
             .body(new ErrorResponse(400, "Bad Request", message, LocalDateTime.now()));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneral(Exception ex) {
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+        return ResponseEntity.status(500)
             .body(new ErrorResponse(500, "Internal Server Error", "An unexpected error occurred", LocalDateTime.now()));
     }
 }
 ```
 
-## Stap 4 — Controleer
-
-Run `./mvnw compile` om te controleren dat alles compileert.
+Also fix AuthController: change login's @ApiResponse from responseCode "403" to "401".

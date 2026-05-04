@@ -5,8 +5,8 @@ import org.noteplus.noteplus.dto.request.LoginRequest;
 import org.noteplus.noteplus.dto.request.RegisterRequest;
 import org.noteplus.noteplus.dto.response.AuthResponse;
 import org.noteplus.noteplus.entity.User;
-import org.noteplus.noteplus.exception.AccessDeniedException;
 import org.noteplus.noteplus.exception.DuplicateResourceException;
+import org.noteplus.noteplus.exception.ForbiddenException;
 import org.noteplus.noteplus.repository.RoleRepository;
 import org.noteplus.noteplus.repository.UserRepository;
 import org.noteplus.noteplus.security.JwtService;
@@ -69,7 +69,7 @@ public class AuthServiceImpl implements AuthService {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.username(), request.password()));
         } catch (BadCredentialsException ex) {
-            throw new AccessDeniedException("Invalid credentials");
+            throw new ForbiddenException("Invalid credentials");
         }
 
         UserDetails userDetails = userDetailsService.loadUserByUsername(request.username());

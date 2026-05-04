@@ -35,7 +35,7 @@ public class AuthController {
     @PostMapping("/login")
     @Operation(summary = "Login and receive a JWT token")
     @ApiResponse(responseCode = "200", description = "Login successful")
-    @ApiResponse(responseCode = "403", description = "Invalid credentials")
+    @ApiResponse(responseCode = "401", description = "Invalid credentials")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
     }
