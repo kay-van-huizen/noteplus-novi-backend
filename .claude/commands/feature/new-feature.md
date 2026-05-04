@@ -46,7 +46,7 @@ Alle methodes die gebruikers-specifiek zijn, accepteren een `String username` pa
 
 - `@Service @RequiredArgsConstructor`
 - Injecteert repository via constructor
-- Bevat eigenaarcontrole (gooit `AccessDeniedException` als user niet eigenaar is)
+- Bevat eigenaarcontrole (gooit `ForbiddenException` als user niet eigenaar is)
 - Converteert entity ↔ DTO (geen MapStruct, handmatig mappen)
 - Soft delete als entiteit `deletedAt` heeft, anders hard delete
 
