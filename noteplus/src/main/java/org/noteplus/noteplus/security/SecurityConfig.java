@@ -36,18 +36,37 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
+                .formLogin(AbstractHttpConfigurer::disable)
+                .httpBasic(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .exceptionHandling(ex -> ex.authenticationEntryPoint((request, response, authException) -> {
-                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                    response.setContentType("application/json");
-                    response.getWriter().write("{\"error\": \"Unauthorized\"}");
-                }))
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setContentType("application/json");
+                            response.getWriter().write("{\"error\": \"Unauthorized\"}");
+                        })
+                )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/api/auth/**",
+                                "/categories/**",
+                                "/notes/**",
+                                "/learning-paths/**",
+                                "/api/notes/*/references/**",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
+                                "/login",
+                                "/login/**",
+                                "/register",
+                                "/register/**",
+                                "/logout-page",
+                                "/forgot-password",
+                                "/forgot-password/**",
+                                "/reset-password",
+                                "/reset-password/**",
+                                "/api/auth/forgot-password",
+                                "/api/auth/reset-password",
                                 "/error"
                         ).permitAll()
                         .anyRequest().authenticated()
