@@ -21,7 +21,7 @@ import java.util.List;
 @RequestMapping("/api/categories")
 @RequiredArgsConstructor
 @Tag(name = "Categories", description = "ADMIN/COACH can create and update, only ADMIN can delete, all roles can read")
-@SecurityRequirement(name = "bearerAuth")
+//@SecurityRequirement(name = "bearerAuth")
 public class CategoryController {
 
     private final CategoryService categoryService;
