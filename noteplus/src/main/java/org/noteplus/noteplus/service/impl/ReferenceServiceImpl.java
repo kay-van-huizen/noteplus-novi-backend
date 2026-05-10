@@ -16,6 +16,7 @@ import org.noteplus.noteplus.service.FileStorageService;
 import org.noteplus.noteplus.service.ReferenceService;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -30,6 +31,7 @@ public class ReferenceServiceImpl implements ReferenceService {
     private final FileStorageService fileStorageService;
 
     @Override
+    @Transactional(readOnly = true)
     public List<ReferenceResponse> getAllForNote(UUID noteId, String username) {
         loadNoteForUser(noteId, username);
         return referenceRepository.findAllByNoteId(noteId).stream()
@@ -38,6 +40,7 @@ public class ReferenceServiceImpl implements ReferenceService {
     }
 
     @Override
+    @Transactional
     public ReferenceResponse create(UUID noteId, CreateReferenceRequest request, String username) {
         var note = loadNoteForUser(noteId, username);
 
@@ -54,6 +57,7 @@ public class ReferenceServiceImpl implements ReferenceService {
     }
 
     @Override
+    @Transactional
     public ReferenceResponse update(UUID referenceId, UUID noteId, UpdateReferenceRequest request, String username) {
         loadNoteForUser(noteId, username);
         var reference = findReferenceForNote(referenceId, noteId);
@@ -66,6 +70,7 @@ public class ReferenceServiceImpl implements ReferenceService {
     }
 
     @Override
+    @Transactional
     public void delete(UUID referenceId, UUID noteId, String username) {
         var note = loadNoteForUser(noteId, username);
         var reference = findReferenceForNote(referenceId, noteId);
@@ -76,6 +81,7 @@ public class ReferenceServiceImpl implements ReferenceService {
     }
 
     @Override
+    @Transactional
     public ReferenceResponse uploadFile(UUID referenceId, UUID noteId, MultipartFile file, String username) {
         loadNoteForUser(noteId, username);
         var reference = findReferenceForNote(referenceId, noteId);
@@ -97,6 +103,7 @@ public class ReferenceServiceImpl implements ReferenceService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Resource downloadFile(UUID referenceId, UUID noteId, String username) {
         loadNoteForUser(noteId, username);
         var reference = findReferenceForNote(referenceId, noteId);
@@ -109,6 +116,7 @@ public class ReferenceServiceImpl implements ReferenceService {
     }
 
     @Override
+    @Transactional
     public void deleteFile(UUID referenceId, UUID noteId, String username) {
         loadNoteForUser(noteId, username);
         var reference = findReferenceForNote(referenceId, noteId);
@@ -132,7 +140,7 @@ public class ReferenceServiceImpl implements ReferenceService {
     }
 
     private Reference findReferenceForNote(UUID referenceId, UUID noteId) {
-        var reference = referenceRepository.findById(referenceId)
+        var reference = referenceRepository.findByIdWithAttachment(referenceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Reference not found: " + referenceId));
         boolean belongsToNote = referenceRepository.findAllByNoteId(noteId).stream()
                 .anyMatch(r -> r.getId().equals(referenceId));

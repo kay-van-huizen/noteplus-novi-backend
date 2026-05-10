@@ -101,6 +101,7 @@ public class LearningPathController {
         return ResponseEntity.ok(learningPathService.addNote(id, noteId, auth.getName()));
     }
 
+    // @todo; needs fix
     @DeleteMapping("/{id}/notes/{noteId}")
     @Operation(summary = "Remove a note from a learning path")
     @ApiResponse(responseCode = "200", description = "Note removed from learning path")

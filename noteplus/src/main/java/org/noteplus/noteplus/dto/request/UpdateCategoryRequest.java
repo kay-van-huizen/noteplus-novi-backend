@@ -5,6 +5,8 @@ import jakarta.validation.constraints.Size;
 import org.noteplus.noteplus.entity.CategoryColor;
 import org.noteplus.noteplus.entity.CategoryStatus;
 
+import java.util.UUID;
+
 public record UpdateCategoryRequest(
 
         @NotBlank(message = "Title is required")
@@ -15,5 +17,7 @@ public record UpdateCategoryRequest(
 
         CategoryColor color,
 
-        CategoryStatus status
+        CategoryStatus status,
+
+        UUID parentId
 ) {}
