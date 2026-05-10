@@ -2,6 +2,7 @@ package org.noteplus.noteplus.security;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -25,14 +26,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
-        String authHeader = request.getHeader("Authorization");
-
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        if (request.getServletPath().equals("/login") ||
+            request.getServletPath().equals("/register") ||
+            request.getServletPath().equals("/logout-page") ||
+            request.getServletPath().equals("/forgot-password") ||
+            request.getServletPath().equals("/reset-password") ||
+            request.getServletPath().startsWith("/api/auth/")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String token = authHeader.substring(7);
+        String token = extractToken(request);
+
+        if (token == null) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         try {
             String username = jwtService.extractUsername(token);
@@ -55,5 +64,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             response.setContentType("application/json");
             response.getWriter().write("{\"error\": \"Invalid or expired token\"}");
         }
+    }
+
+    private String extractToken(HttpServletRequest request) {
+        // 1. Authorization header — for Swagger, Postman, and API clients
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7);
+        }
+
+        // 2. HTTP-only cookie — for browser / JTE form requests
+        if (request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if ("jwt".equals(cookie.getName())) {
+                    return cookie.getValue();
+                }
+            }
+        }
+
+        return null;
     }
 }
