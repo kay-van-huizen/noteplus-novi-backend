@@ -17,6 +17,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/learning-paths")
@@ -49,7 +50,7 @@ public class LearningPathController {
     @ApiResponse(responseCode = "403", description = "Not a participant of this path")
     @ApiResponse(responseCode = "404", description = "Learning path not found")
     public ResponseEntity<LearningPathResponse> getById(
-            @PathVariable Long id,
+            @PathVariable UUID id,
             Authentication auth) {
         return ResponseEntity.ok(learningPathService.getById(id, auth.getName()));
     }
@@ -71,7 +72,7 @@ public class LearningPathController {
     @ApiResponse(responseCode = "403", description = "Not a participant of this path")
     @ApiResponse(responseCode = "404", description = "Learning path not found")
     public ResponseEntity<LearningPathResponse> update(
-            @PathVariable Long id,
+            @PathVariable UUID id,
             @Valid @RequestBody UpdateLearningPathRequest request,
             Authentication auth) {
         return ResponseEntity.ok(learningPathService.update(id, request, auth.getName()));
@@ -83,7 +84,7 @@ public class LearningPathController {
     @ApiResponse(responseCode = "204", description = "Learning path deleted")
     @ApiResponse(responseCode = "403", description = "Students cannot delete learning paths")
     @ApiResponse(responseCode = "404", description = "Learning path not found")
-    public ResponseEntity<Void> delete(@PathVariable Long id, Authentication auth) {
+    public ResponseEntity<Void> delete(@PathVariable UUID id, Authentication auth) {
         learningPathService.delete(id, auth.getName());
         return ResponseEntity.noContent().build();
     }
@@ -94,8 +95,8 @@ public class LearningPathController {
     @ApiResponse(responseCode = "403", description = "Not a participant of this path")
     @ApiResponse(responseCode = "404", description = "Learning path or note not found")
     public ResponseEntity<LearningPathResponse> addNote(
-            @PathVariable Long id,
-            @PathVariable Long noteId,
+            @PathVariable UUID id,
+            @PathVariable UUID noteId,
             Authentication auth) {
         return ResponseEntity.ok(learningPathService.addNote(id, noteId, auth.getName()));
     }
@@ -106,8 +107,8 @@ public class LearningPathController {
     @ApiResponse(responseCode = "403", description = "Not a participant of this path")
     @ApiResponse(responseCode = "404", description = "Learning path or note not found")
     public ResponseEntity<LearningPathResponse> removeNote(
-            @PathVariable Long id,
-            @PathVariable Long noteId,
+            @PathVariable UUID id,
+            @PathVariable UUID noteId,
             Authentication auth) {
         return ResponseEntity.ok(learningPathService.removeNote(id, noteId, auth.getName()));
     }

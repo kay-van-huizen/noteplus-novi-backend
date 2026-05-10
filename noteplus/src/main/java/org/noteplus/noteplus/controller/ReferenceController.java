@@ -22,6 +22,7 @@ import org.springframework.web.multipart.MultipartFile;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
@@ -37,7 +38,7 @@ public class ReferenceController {
     @ApiResponse(responseCode = "403", description = "Not your note")
     @ApiResponse(responseCode = "404", description = "Note not found")
     public ResponseEntity<List<ReferenceResponse>> getAllForNote(
-            @PathVariable Long noteId,
+            @PathVariable UUID noteId,
             Authentication auth) {
         return ResponseEntity.ok(referenceService.getAllForNote(noteId, auth.getName()));
     }
@@ -49,7 +50,7 @@ public class ReferenceController {
     @ApiResponse(responseCode = "403", description = "Not your note")
     @ApiResponse(responseCode = "404", description = "Note not found")
     public ResponseEntity<ReferenceResponse> create(
-            @PathVariable Long noteId,
+            @PathVariable UUID noteId,
             @Valid @RequestBody CreateReferenceRequest request,
             Authentication auth) {
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -62,8 +63,8 @@ public class ReferenceController {
     @ApiResponse(responseCode = "403", description = "Not your note or reference")
     @ApiResponse(responseCode = "404", description = "Note or reference not found")
     public ResponseEntity<ReferenceResponse> update(
-            @PathVariable Long noteId,
-            @PathVariable Long referenceId,
+            @PathVariable UUID noteId,
+            @PathVariable UUID referenceId,
             @Valid @RequestBody UpdateReferenceRequest request,
             Authentication auth) {
         return ResponseEntity.ok(referenceService.update(referenceId, noteId, request, auth.getName()));
@@ -75,8 +76,8 @@ public class ReferenceController {
     @ApiResponse(responseCode = "403", description = "Not your note or reference")
     @ApiResponse(responseCode = "404", description = "Note or reference not found")
     public ResponseEntity<Void> delete(
-            @PathVariable Long noteId,
-            @PathVariable Long referenceId,
+            @PathVariable UUID noteId,
+            @PathVariable UUID referenceId,
             Authentication auth) {
         referenceService.delete(referenceId, noteId, auth.getName());
         return ResponseEntity.noContent().build();
@@ -90,8 +91,8 @@ public class ReferenceController {
     @ApiResponse(responseCode = "403", description = "Not your note")
     @ApiResponse(responseCode = "404", description = "Note or reference not found")
     public ResponseEntity<ReferenceResponse> uploadFile(
-            @PathVariable Long noteId,
-            @PathVariable Long referenceId,
+            @PathVariable UUID noteId,
+            @PathVariable UUID referenceId,
             @RequestParam("file") MultipartFile file,
             Authentication auth) {
         return ResponseEntity.ok(
@@ -103,8 +104,8 @@ public class ReferenceController {
     @ApiResponse(responseCode = "200", description = "File downloaded")
     @ApiResponse(responseCode = "404", description = "No file attached or reference not found")
     public ResponseEntity<Resource> downloadFile(
-            @PathVariable Long noteId,
-            @PathVariable Long referenceId,
+            @PathVariable UUID noteId,
+            @PathVariable UUID referenceId,
             Authentication auth) {
         Resource file = referenceService.downloadFile(referenceId, noteId, auth.getName());
         return ResponseEntity.ok()
@@ -119,8 +120,8 @@ public class ReferenceController {
     @ApiResponse(responseCode = "204", description = "File deleted")
     @ApiResponse(responseCode = "404", description = "No file attached or reference not found")
     public ResponseEntity<Void> deleteFile(
-            @PathVariable Long noteId,
-            @PathVariable Long referenceId,
+            @PathVariable UUID noteId,
+            @PathVariable UUID referenceId,
             Authentication auth) {
         referenceService.deleteFile(referenceId, noteId, auth.getName());
         return ResponseEntity.noContent().build();
@@ -130,8 +131,8 @@ public class ReferenceController {
     @Operation(summary = "Delete attachment via HTML form POST (browser workaround)")
     @ApiResponse(responseCode = "204", description = "File deleted, redirects to edit page")
     public ResponseEntity<Void> deleteFileFromForm(
-            @PathVariable Long noteId,
-            @PathVariable Long referenceId,
+            @PathVariable UUID noteId,
+            @PathVariable UUID referenceId,
             Authentication auth,
             HttpServletResponse response) throws IOException {
         referenceService.deleteFile(referenceId, noteId, auth.getName());

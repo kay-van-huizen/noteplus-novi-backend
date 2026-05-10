@@ -16,6 +16,7 @@ import org.noteplus.noteplus.service.LearningPathService;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -30,10 +31,10 @@ public class LearningPathServiceImpl implements LearningPathService {
         userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        var student = userRepository.findByLongId(request.studentId())
+        var student = userRepository.findById(request.studentId())
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found"));
 
-        var coach = userRepository.findByLongId(request.coachId())
+        var coach = userRepository.findById(request.coachId())
                 .orElseThrow(() -> new ResourceNotFoundException("Coach not found"));
 
         var lp = new LearningPath();
@@ -46,7 +47,7 @@ public class LearningPathServiceImpl implements LearningPathService {
     }
 
     @Override
-    public LearningPathResponse getById(Long id, String username) {
+    public LearningPathResponse getById(UUID id, String username) {
         var lp = findOrThrow(id);
         checkParticipant(lp, username);
         return toResponse(lp);
@@ -67,7 +68,7 @@ public class LearningPathServiceImpl implements LearningPathService {
     }
 
     @Override
-    public LearningPathResponse update(Long id, UpdateLearningPathRequest request, String username) {
+    public LearningPathResponse update(UUID id, UpdateLearningPathRequest request, String username) {
         var lp = findOrThrow(id);
         checkParticipant(lp, username);
 
@@ -78,7 +79,7 @@ public class LearningPathServiceImpl implements LearningPathService {
     }
 
     @Override
-    public void delete(Long id, String username) {
+    public void delete(UUID id, String username) {
         var lp = findOrThrow(id);
 
         if (!lp.getCoach().getUsername().equals(username)) {
@@ -89,7 +90,7 @@ public class LearningPathServiceImpl implements LearningPathService {
     }
 
     @Override
-    public LearningPathResponse addNote(Long learningPathId, Long noteId, String username) {
+    public LearningPathResponse addNote(UUID learningPathId, UUID noteId, String username) {
         var lp = findOrThrow(learningPathId);
         checkParticipant(lp, username);
 
@@ -106,7 +107,7 @@ public class LearningPathServiceImpl implements LearningPathService {
     }
 
     @Override
-    public LearningPathResponse removeNote(Long learningPathId, Long noteId, String username) {
+    public LearningPathResponse removeNote(UUID learningPathId, UUID noteId, String username) {
         var lp = findOrThrow(learningPathId);
         checkParticipant(lp, username);
 
@@ -118,7 +119,7 @@ public class LearningPathServiceImpl implements LearningPathService {
         return toResponse(learningPathRepository.save(lp));
     }
 
-    private LearningPath findOrThrow(Long id) {
+    private LearningPath findOrThrow(UUID id) {
         return learningPathRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Learning path not found: " + id));
     }

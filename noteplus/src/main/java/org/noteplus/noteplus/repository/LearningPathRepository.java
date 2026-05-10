@@ -6,8 +6,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.UUID;
 
-public interface LearningPathRepository extends JpaRepository<LearningPath, Long> {
+public interface LearningPathRepository extends JpaRepository<LearningPath, UUID> {
 
     @Query("SELECT lp FROM LearningPath lp WHERE lp.student.username = :username OR lp.coach.username = :username")
     List<LearningPath> findAllByUsername(@Param("username") String username);

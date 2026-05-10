@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -44,7 +45,7 @@ public class NoteServiceImpl implements NoteService {
     }
 
     @Override
-    public NoteResponse getById(Long id, String username) {
+    public NoteResponse getById(UUID id, String username) {
         var note = noteRepository.findByIdNotDeleted(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Note not found: " + id));
 
@@ -70,14 +71,14 @@ public class NoteServiceImpl implements NoteService {
     }
 
     @Override
-    public List<NoteResponse> getByCategoryId(Long categoryId) {
+    public List<NoteResponse> getByCategoryId(UUID categoryId) {
         return noteRepository.findByCategoryIdNotDeleted(categoryId).stream()
                 .map(this::toResponse)
                 .toList();
     }
 
     @Override
-    public NoteResponse update(Long id, UpdateNoteRequest request, String username) {
+    public NoteResponse update(UUID id, UpdateNoteRequest request, String username) {
         var note = noteRepository.findByIdNotDeleted(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Note not found: " + id));
 
@@ -100,7 +101,7 @@ public class NoteServiceImpl implements NoteService {
     }
 
     @Override
-    public void delete(Long id, String username) {
+    public void delete(UUID id, String username) {
         var note = noteRepository.findByIdNotDeleted(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Note not found: " + id));
 

@@ -14,6 +14,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @Controller
 @RequestMapping("/notes")
@@ -53,7 +54,7 @@ public class NoteViewController {
     }
 
     @GetMapping("/{id}/edit")
-    public String showEdit(@PathVariable Long id, Model model, Authentication auth) {
+    public String showEdit(@PathVariable UUID id, Model model, Authentication auth) {
         try {
             NoteResponse note = noteService.getById(id, auth.getName());
             List<ReferenceResponse> references = referenceService.getAllForNote(id, auth.getName());
@@ -68,7 +69,7 @@ public class NoteViewController {
 
     @PostMapping("/{id}/edit")
     public String handleUpdate(
-            @PathVariable Long id,
+            @PathVariable UUID id,
             @ModelAttribute UpdateNoteRequest request,
             Authentication auth,
             Model model) {

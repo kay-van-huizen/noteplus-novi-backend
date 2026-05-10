@@ -1,7 +1,9 @@
 package org.noteplus.noteplus.dto.response;
 
+import java.util.UUID;
+
 public record ReferenceResponse(
-        Long id,
+        UUID id,
         String title,
         String description,
         String url,

@@ -7,14 +7,15 @@ import org.springframework.core.io.Resource;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.UUID;
 
 public interface ReferenceService {
-    List<ReferenceResponse> getAllForNote(Long noteId, String username);
-    ReferenceResponse create(Long noteId, CreateReferenceRequest request, String username);
-    ReferenceResponse update(Long referenceId, Long noteId, UpdateReferenceRequest request, String username);
-    void delete(Long referenceId, Long noteId, String username);
+    List<ReferenceResponse> getAllForNote(UUID noteId, String username);
+    ReferenceResponse create(UUID noteId, CreateReferenceRequest request, String username);
+    ReferenceResponse update(UUID referenceId, UUID noteId, UpdateReferenceRequest request, String username);
+    void delete(UUID referenceId, UUID noteId, String username);
 
-    ReferenceResponse uploadFile(Long referenceId, Long noteId, MultipartFile file, String username);
-    Resource downloadFile(Long referenceId, Long noteId, String username);
-    void deleteFile(Long referenceId, Long noteId, String username);
+    ReferenceResponse uploadFile(UUID referenceId, UUID noteId, MultipartFile file, String username);
+    Resource downloadFile(UUID referenceId, UUID noteId, String username);
+    void deleteFile(UUID referenceId, UUID noteId, String username);
 }

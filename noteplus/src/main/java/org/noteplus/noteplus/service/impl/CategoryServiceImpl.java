@@ -14,6 +14,7 @@ import org.noteplus.noteplus.service.CategoryService;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -40,7 +41,7 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
-    public CategoryResponse getById(Long id) {
+    public CategoryResponse getById(UUID id) {
         return toResponse(findOrThrow(id));
     }
 
@@ -59,14 +60,14 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
-    public List<CategoryResponse> getChildren(Long parentId) {
+    public List<CategoryResponse> getChildren(UUID parentId) {
         return categoryRepository.findByParentCategoryId(parentId).stream()
                 .map(this::toResponse)
                 .toList();
     }
 
     @Override
-    public CategoryResponse update(Long id, UpdateCategoryRequest request) {
+    public CategoryResponse update(UUID id, UpdateCategoryRequest request) {
         var category = findOrThrow(id);
 
         category.setTitle(request.title());
@@ -78,7 +79,7 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
-    public void delete(Long id) {
+    public void delete(UUID id) {
         var category = findOrThrow(id);
 
         if (!categoryRepository.findByParentCategoryId(id).isEmpty()) {
@@ -88,7 +89,7 @@ public class CategoryServiceImpl implements CategoryService {
         categoryRepository.delete(category);
     }
 
-    private Category findOrThrow(Long id) {
+    private Category findOrThrow(UUID id) {
         return categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + id));
     }

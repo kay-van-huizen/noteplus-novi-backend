@@ -5,20 +5,21 @@ import org.noteplus.noteplus.dto.request.UpdateCategoryRequest;
 import org.noteplus.noteplus.dto.response.CategoryResponse;
 
 import java.util.List;
+import java.util.UUID;
 
 public interface CategoryService {
 
     CategoryResponse create(CreateCategoryRequest request);
 
-    CategoryResponse getById(Long id);
+    CategoryResponse getById(UUID id);
 
     List<CategoryResponse> getAll();
 
     List<CategoryResponse> getRootCategories();
 
-    List<CategoryResponse> getChildren(Long parentId);
+    List<CategoryResponse> getChildren(UUID parentId);
 
-    CategoryResponse update(Long id, UpdateCategoryRequest request);
+    CategoryResponse update(UUID id, UpdateCategoryRequest request);
 
-    void delete(Long id);
+    void delete(UUID id);
 }

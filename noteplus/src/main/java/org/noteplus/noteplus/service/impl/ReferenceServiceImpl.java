@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -29,7 +30,7 @@ public class ReferenceServiceImpl implements ReferenceService {
     private final FileStorageService fileStorageService;
 
     @Override
-    public List<ReferenceResponse> getAllForNote(Long noteId, String username) {
+    public List<ReferenceResponse> getAllForNote(UUID noteId, String username) {
         loadNoteForUser(noteId, username);
         return referenceRepository.findAllByNoteId(noteId).stream()
                 .map(this::toResponse)
@@ -37,7 +38,7 @@ public class ReferenceServiceImpl implements ReferenceService {
     }
 
     @Override
-    public ReferenceResponse create(Long noteId, CreateReferenceRequest request, String username) {
+    public ReferenceResponse create(UUID noteId, CreateReferenceRequest request, String username) {
         var note = loadNoteForUser(noteId, username);
 
         var reference = new Reference();
@@ -53,7 +54,7 @@ public class ReferenceServiceImpl implements ReferenceService {
     }
 
     @Override
-    public ReferenceResponse update(Long referenceId, Long noteId, UpdateReferenceRequest request, String username) {
+    public ReferenceResponse update(UUID referenceId, UUID noteId, UpdateReferenceRequest request, String username) {
         loadNoteForUser(noteId, username);
         var reference = findReferenceForNote(referenceId, noteId);
 
@@ -65,7 +66,7 @@ public class ReferenceServiceImpl implements ReferenceService {
     }
 
     @Override
-    public void delete(Long referenceId, Long noteId, String username) {
+    public void delete(UUID referenceId, UUID noteId, String username) {
         var note = loadNoteForUser(noteId, username);
         var reference = findReferenceForNote(referenceId, noteId);
 
@@ -75,7 +76,7 @@ public class ReferenceServiceImpl implements ReferenceService {
     }
 
     @Override
-    public ReferenceResponse uploadFile(Long referenceId, Long noteId, MultipartFile file, String username) {
+    public ReferenceResponse uploadFile(UUID referenceId, UUID noteId, MultipartFile file, String username) {
         loadNoteForUser(noteId, username);
         var reference = findReferenceForNote(referenceId, noteId);
 
@@ -96,7 +97,7 @@ public class ReferenceServiceImpl implements ReferenceService {
     }
 
     @Override
-    public Resource downloadFile(Long referenceId, Long noteId, String username) {
+    public Resource downloadFile(UUID referenceId, UUID noteId, String username) {
         loadNoteForUser(noteId, username);
         var reference = findReferenceForNote(referenceId, noteId);
 
@@ -108,7 +109,7 @@ public class ReferenceServiceImpl implements ReferenceService {
     }
 
     @Override
-    public void deleteFile(Long referenceId, Long noteId, String username) {
+    public void deleteFile(UUID referenceId, UUID noteId, String username) {
         loadNoteForUser(noteId, username);
         var reference = findReferenceForNote(referenceId, noteId);
 
@@ -121,7 +122,7 @@ public class ReferenceServiceImpl implements ReferenceService {
         referenceRepository.save(reference);
     }
 
-    private Note loadNoteForUser(Long noteId, String username) {
+    private Note loadNoteForUser(UUID noteId, String username) {
         var note = noteRepository.findByIdNotDeleted(noteId)
                 .orElseThrow(() -> new ResourceNotFoundException("Note not found: " + noteId));
         if (!note.getUser().getUsername().equals(username)) {
@@ -130,7 +131,7 @@ public class ReferenceServiceImpl implements ReferenceService {
         return note;
     }
 
-    private Reference findReferenceForNote(Long referenceId, Long noteId) {
+    private Reference findReferenceForNote(UUID referenceId, UUID noteId) {
         var reference = referenceRepository.findById(referenceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Reference not found: " + referenceId));
         boolean belongsToNote = referenceRepository.findAllByNoteId(noteId).stream()
