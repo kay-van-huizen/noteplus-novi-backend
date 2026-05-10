@@ -126,17 +126,4 @@ public class ReferenceController {
         referenceService.deleteFile(referenceId, noteId, auth.getName());
         return ResponseEntity.noContent().build();
     }
-
-    @PostMapping("/api/notes/{noteId}/references/{referenceId}/attachment/delete")
-    @Operation(summary = "Delete attachment via HTML form POST (browser workaround)")
-    @ApiResponse(responseCode = "204", description = "File deleted, redirects to edit page")
-    public ResponseEntity<Void> deleteFileFromForm(
-            @PathVariable UUID noteId,
-            @PathVariable UUID referenceId,
-            Authentication auth,
-            HttpServletResponse response) throws IOException {
-        referenceService.deleteFile(referenceId, noteId, auth.getName());
-        response.sendRedirect("/notes/" + noteId + "/edit");
-        return ResponseEntity.noContent().build();
-    }
 }
