@@ -113,6 +113,14 @@ public class CategoryServiceImpl implements CategoryService {
         categoryRepository.delete(category);
     }
 
+    @Override
+    @Transactional
+    public CategoryResponse updateStatus(UUID id, CategoryStatus status) {
+        var category = findOrThrow(id);
+        category.setStatus(status);
+        return toResponse(categoryRepository.save(category));
+    }
+
     private Category findOrThrow(UUID id) {
         return categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + id));

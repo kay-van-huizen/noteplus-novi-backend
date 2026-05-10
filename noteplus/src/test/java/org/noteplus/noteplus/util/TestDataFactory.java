@@ -8,12 +8,17 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDateTime;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * Shared factory for test data — all tests must use this class instead of
  * creating entities inline, so test data stays consistent and changes propagate.
  */
 public class TestDataFactory {
+
+    public static final UUID NOTE_ID     = UUID.fromString("00000000-0000-0000-0000-000000000100");
+    public static final UUID CATEGORY_ID = UUID.fromString("00000000-0000-0000-0000-000000000010");
+    public static final UUID NOT_FOUND_ID = UUID.fromString("00000000-0000-0000-0000-000000000999");
 
     public static Role createStudentRole() {
         Role role = new Role();
@@ -67,7 +72,7 @@ public class TestDataFactory {
 
     public static Category createCategory() {
         Category cat = new Category();
-        cat.setId(10L);
+        cat.setId(CATEGORY_ID);
         cat.setTitle("Test Category");
         return cat;
     }
@@ -76,7 +81,7 @@ public class TestDataFactory {
 
     public static Note createNote(User owner) {
         Note note = new Note();
-        note.setId(100L);
+        note.setId(NOTE_ID);
         note.setTitle("Test Note Title");
         note.setContent("Test note content body");
         note.setUser(owner);

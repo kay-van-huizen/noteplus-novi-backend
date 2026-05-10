@@ -24,6 +24,7 @@ import org.noteplus.noteplus.util.TestDataFactory;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -74,20 +75,20 @@ class NoteServiceImplTest {
         // Arrange
         User student = TestDataFactory.createStudent();
         Category category = TestDataFactory.createCategory();
-        CreateNoteRequest request = new CreateNoteRequest("My Title", "My Content", 10L);
+        CreateNoteRequest request = new CreateNoteRequest("My Title", "My Content", TestDataFactory.CATEGORY_ID);
         Note savedNote = TestDataFactory.createNoteWithCategory(student, category);
 
         when(userRepository.findByUsername("student1")).thenReturn(Optional.of(student));
-        when(categoryRepository.findById(10L)).thenReturn(Optional.of(category));
+        when(categoryRepository.findById(TestDataFactory.CATEGORY_ID)).thenReturn(Optional.of(category));
         when(noteRepository.save(any(Note.class))).thenReturn(savedNote);
 
         // Act
         NoteResponse result = noteService.create(request, "student1");
 
         // Assert
-        assertThat(result.categoryId()).isEqualTo(10L);
+        assertThat(result.categoryId()).isEqualTo(TestDataFactory.CATEGORY_ID);
         assertThat(result.categoryTitle()).isEqualTo("Test Category");
-        verify(categoryRepository).findById(10L);
+        verify(categoryRepository).findById(TestDataFactory.CATEGORY_ID);
     }
 
     @Test
@@ -110,10 +111,10 @@ class NoteServiceImplTest {
     void create_categoryNotFound_throwsResourceNotFoundException() {
         // Arrange
         User student = TestDataFactory.createStudent();
-        CreateNoteRequest request = new CreateNoteRequest("Title", "Content", 999L);
+        CreateNoteRequest request = new CreateNoteRequest("Title", "Content", TestDataFactory.NOT_FOUND_ID);
 
         when(userRepository.findByUsername("student1")).thenReturn(Optional.of(student));
-        when(categoryRepository.findById(999L)).thenReturn(Optional.empty());
+        when(categoryRepository.findById(TestDataFactory.NOT_FOUND_ID)).thenReturn(Optional.empty());
 
         // Act & Assert
         assertThatThrownBy(() -> noteService.create(request, "student1"))
@@ -132,13 +133,13 @@ class NoteServiceImplTest {
         User student = TestDataFactory.createStudent();
         Note note = TestDataFactory.createNote(student);
 
-        when(noteRepository.findByIdNotDeleted(100L)).thenReturn(Optional.of(note));
+        when(noteRepository.findByIdNotDeleted(TestDataFactory.NOTE_ID)).thenReturn(Optional.of(note));
 
         // Act
-        NoteResponse result = noteService.getById(100L, "student1");
+        NoteResponse result = noteService.getById(TestDataFactory.NOTE_ID, "student1");
 
         // Assert
-        assertThat(result.id()).isEqualTo(100L);
+        assertThat(result.id()).isEqualTo(TestDataFactory.NOTE_ID);
         assertThat(result.title()).isEqualTo("Test Note Title");
         assertThat(result.ownerUsername()).isEqualTo("student1");
     }
@@ -150,10 +151,10 @@ class NoteServiceImplTest {
         User student = TestDataFactory.createStudent();
         Note note = TestDataFactory.createNote(student);
 
-        when(noteRepository.findByIdNotDeleted(100L)).thenReturn(Optional.of(note));
+        when(noteRepository.findByIdNotDeleted(TestDataFactory.NOTE_ID)).thenReturn(Optional.of(note));
 
         // Act & Assert
-        assertThatThrownBy(() -> noteService.getById(100L, "coach1"))
+        assertThatThrownBy(() -> noteService.getById(TestDataFactory.NOTE_ID, "coach1"))
                 .isInstanceOf(ForbiddenException.class)
                 .hasMessageContaining("access");
     }
@@ -162,10 +163,10 @@ class NoteServiceImplTest {
     @DisplayName("getById - note does not exist - throws ResourceNotFoundException")
     void getById_noteNotFound_throwsResourceNotFoundException() {
         // Arrange
-        when(noteRepository.findByIdNotDeleted(999L)).thenReturn(Optional.empty());
+        when(noteRepository.findByIdNotDeleted(TestDataFactory.NOT_FOUND_ID)).thenReturn(Optional.empty());
 
         // Act & Assert
-        assertThatThrownBy(() -> noteService.getById(999L, "student1"))
+        assertThatThrownBy(() -> noteService.getById(TestDataFactory.NOT_FOUND_ID, "student1"))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Note not found");
     }
@@ -237,14 +238,14 @@ class NoteServiceImplTest {
         Category category = TestDataFactory.createCategory();
         Note note = TestDataFactory.createNoteWithCategory(student, category);
 
-        when(noteRepository.findByCategoryIdNotDeleted(10L)).thenReturn(List.of(note));
+        when(noteRepository.findByCategoryIdNotDeleted(TestDataFactory.CATEGORY_ID)).thenReturn(List.of(note));
 
         // Act
-        List<NoteResponse> result = noteService.getByCategoryId(10L);
+        List<NoteResponse> result = noteService.getByCategoryId(TestDataFactory.CATEGORY_ID);
 
         // Assert
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).categoryId()).isEqualTo(10L);
+        assertThat(result.get(0).categoryId()).isEqualTo(TestDataFactory.CATEGORY_ID);
     }
 
     // ── update() ──────────────────────────────────────────────────────────
@@ -257,11 +258,11 @@ class NoteServiceImplTest {
         Note note = TestDataFactory.createNote(student);
         UpdateNoteRequest request = new UpdateNoteRequest("Updated Title", "Updated Content", null);
 
-        when(noteRepository.findByIdNotDeleted(100L)).thenReturn(Optional.of(note));
+        when(noteRepository.findByIdNotDeleted(TestDataFactory.NOTE_ID)).thenReturn(Optional.of(note));
         when(noteRepository.save(any(Note.class))).thenAnswer(inv -> inv.getArgument(0));
 
         // Act
-        NoteResponse result = noteService.update(100L, request, "student1");
+        NoteResponse result = noteService.update(TestDataFactory.NOTE_ID, request, "student1");
 
         // Assert — title and content updated, category cleared
         assertThat(result.title()).isEqualTo("Updated Title");
@@ -278,19 +279,19 @@ class NoteServiceImplTest {
         User student = TestDataFactory.createStudent();
         Category category = TestDataFactory.createCategory();
         Note note = TestDataFactory.createNote(student);
-        UpdateNoteRequest request = new UpdateNoteRequest("Updated Title", "Updated Content", 10L);
+        UpdateNoteRequest request = new UpdateNoteRequest("Updated Title", "Updated Content", TestDataFactory.CATEGORY_ID);
 
-        when(noteRepository.findByIdNotDeleted(100L)).thenReturn(Optional.of(note));
-        when(categoryRepository.findById(10L)).thenReturn(Optional.of(category));
+        when(noteRepository.findByIdNotDeleted(TestDataFactory.NOTE_ID)).thenReturn(Optional.of(note));
+        when(categoryRepository.findById(TestDataFactory.CATEGORY_ID)).thenReturn(Optional.of(category));
         when(noteRepository.save(any(Note.class))).thenAnswer(inv -> inv.getArgument(0));
 
         // Act
-        NoteResponse result = noteService.update(100L, request, "student1");
+        NoteResponse result = noteService.update(TestDataFactory.NOTE_ID, request, "student1");
 
         // Assert
-        assertThat(result.categoryId()).isEqualTo(10L);
+        assertThat(result.categoryId()).isEqualTo(TestDataFactory.CATEGORY_ID);
         assertThat(result.categoryTitle()).isEqualTo("Test Category");
-        verify(categoryRepository).findById(10L);
+        verify(categoryRepository).findById(TestDataFactory.CATEGORY_ID);
     }
 
     @Test
@@ -299,13 +300,13 @@ class NoteServiceImplTest {
         // Arrange
         User student = TestDataFactory.createStudent();
         Note note = TestDataFactory.createNote(student);
-        UpdateNoteRequest request = new UpdateNoteRequest("Title", "Content", 999L);
+        UpdateNoteRequest request = new UpdateNoteRequest("Title", "Content", TestDataFactory.NOT_FOUND_ID);
 
-        when(noteRepository.findByIdNotDeleted(100L)).thenReturn(Optional.of(note));
-        when(categoryRepository.findById(999L)).thenReturn(Optional.empty());
+        when(noteRepository.findByIdNotDeleted(TestDataFactory.NOTE_ID)).thenReturn(Optional.of(note));
+        when(categoryRepository.findById(TestDataFactory.NOT_FOUND_ID)).thenReturn(Optional.empty());
 
         // Act & Assert
-        assertThatThrownBy(() -> noteService.update(100L, request, "student1"))
+        assertThatThrownBy(() -> noteService.update(TestDataFactory.NOTE_ID, request, "student1"))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Category not found");
 
@@ -320,10 +321,10 @@ class NoteServiceImplTest {
         Note note = TestDataFactory.createNote(student);
         UpdateNoteRequest request = new UpdateNoteRequest("Hacked Title", "Hacked Content", null);
 
-        when(noteRepository.findByIdNotDeleted(100L)).thenReturn(Optional.of(note));
+        when(noteRepository.findByIdNotDeleted(TestDataFactory.NOTE_ID)).thenReturn(Optional.of(note));
 
         // Act & Assert
-        assertThatThrownBy(() -> noteService.update(100L, request, "coach1"))
+        assertThatThrownBy(() -> noteService.update(TestDataFactory.NOTE_ID, request, "coach1"))
                 .isInstanceOf(ForbiddenException.class)
                 .hasMessageContaining("own");
 
@@ -335,10 +336,10 @@ class NoteServiceImplTest {
     void update_noteNotFound_throwsResourceNotFoundException() {
         // Arrange
         UpdateNoteRequest request = new UpdateNoteRequest("Title", "Content", null);
-        when(noteRepository.findByIdNotDeleted(999L)).thenReturn(Optional.empty());
+        when(noteRepository.findByIdNotDeleted(TestDataFactory.NOT_FOUND_ID)).thenReturn(Optional.empty());
 
         // Act & Assert
-        assertThatThrownBy(() -> noteService.update(999L, request, "student1"))
+        assertThatThrownBy(() -> noteService.update(TestDataFactory.NOT_FOUND_ID, request, "student1"))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Note not found");
     }
@@ -352,11 +353,11 @@ class NoteServiceImplTest {
         User student = TestDataFactory.createStudent();
         Note note = TestDataFactory.createNote(student);
 
-        when(noteRepository.findByIdNotDeleted(100L)).thenReturn(Optional.of(note));
+        when(noteRepository.findByIdNotDeleted(TestDataFactory.NOTE_ID)).thenReturn(Optional.of(note));
         when(noteRepository.save(any(Note.class))).thenReturn(note);
 
         // Act
-        noteService.delete(100L, "student1");
+        noteService.delete(TestDataFactory.NOTE_ID, "student1");
 
         // Assert — soft delete: deletedAt must be set to a recent timestamp
         ArgumentCaptor<Note> captor = ArgumentCaptor.forClass(Note.class);
@@ -376,10 +377,10 @@ class NoteServiceImplTest {
         User student = TestDataFactory.createStudent();
         Note note = TestDataFactory.createNote(student);
 
-        when(noteRepository.findByIdNotDeleted(100L)).thenReturn(Optional.of(note));
+        when(noteRepository.findByIdNotDeleted(TestDataFactory.NOTE_ID)).thenReturn(Optional.of(note));
 
         // Act & Assert
-        assertThatThrownBy(() -> noteService.delete(100L, "coach1"))
+        assertThatThrownBy(() -> noteService.delete(TestDataFactory.NOTE_ID, "coach1"))
                 .isInstanceOf(ForbiddenException.class)
                 .hasMessageContaining("own");
 
@@ -391,10 +392,10 @@ class NoteServiceImplTest {
     @DisplayName("delete - note not found - throws ResourceNotFoundException")
     void delete_noteNotFound_throwsResourceNotFoundException() {
         // Arrange
-        when(noteRepository.findByIdNotDeleted(999L)).thenReturn(Optional.empty());
+        when(noteRepository.findByIdNotDeleted(TestDataFactory.NOT_FOUND_ID)).thenReturn(Optional.empty());
 
         // Act & Assert
-        assertThatThrownBy(() -> noteService.delete(999L, "student1"))
+        assertThatThrownBy(() -> noteService.delete(TestDataFactory.NOT_FOUND_ID, "student1"))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Note not found");
     }

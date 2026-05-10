@@ -38,6 +38,9 @@ export default function LoginPage() {
           <button style={btn} type="submit">Sign in</button>
         </form>
         <p style={footer}>No account? <Link href="/register">Register</Link></p>
+        <p style={{ ...footer, marginTop: 8 }}>
+          <Link href="/forgot-password" style={{ color: '#6b7280' }}>Forgot password?</Link>
+        </p>
       </div>
     </div>
   )

@@ -36,7 +36,9 @@ export default function NotesPage() {
            notes.map(note => (
             <div key={note.id} style={row}>
               <div>
-                <strong style={{ fontSize: 15 }}>{note.title}</strong>
+                <Link href={`/notes/${note.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                  <strong style={{ fontSize: 15 }}>{note.title}</strong>
+                </Link>
                 {note.categoryTitle && <span style={badge}>{note.categoryTitle}</span>}
                 <div style={{ color: '#6b7280', fontSize: 13, marginTop: 2 }}>
                   {note.content?.substring(0, 100)}{(note.content?.length ?? 0) > 100 ? '…' : ''}

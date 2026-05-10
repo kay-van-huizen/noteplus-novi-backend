@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.noteplus.noteplus.BaseIntegrationTest;
 import org.springframework.http.MediaType;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -24,12 +25,12 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
     @DisplayName("POST /api/auth/register - valid request - returns 201 with token and ROLE_STUDENT")
     void register_validRequest_returns201WithToken() throws Exception {
         // Arrange
+        // RegisterRequest fields: username, email, password (no name field)
         String suffix = UUID.randomUUID().toString().substring(0, 8);
-        Map<String, String> body = Map.of(
-                "username", "user_" + suffix,
-                "email", suffix + "@test.nl",
-                "password", "password123"
-        );
+        Map<String, String> body = new HashMap<>();
+        body.put("username", "user_" + suffix);
+        body.put("email", suffix + "@test.nl");
+        body.put("password", "password123");
 
         // Act & Assert
         mockMvc.perform(post("/api/auth/register")
@@ -39,30 +40,30 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.token").isNotEmpty())
                 .andExpect(jsonPath("$.username").value("user_" + suffix))
                 .andExpect(jsonPath("$.roles").isArray())
-                .andExpect(jsonPath("$.roles[0]").value("ROLE_STUDENT"));
+                // hasItem: order-safe — roles is backed by a Set internally
+                .andExpect(jsonPath("$.roles", hasItem("ROLE_STUDENT")));
     }
 
     @Test
     @DisplayName("POST /api/auth/register - duplicate username - returns 409 Conflict")
     void register_duplicateUsername_returns409() throws Exception {
-        // Arrange — register once
+        // Arrange — register once successfully
         String suffix = UUID.randomUUID().toString().substring(0, 8);
-        Map<String, String> first = Map.of(
-                "username", "dupuser_" + suffix,
-                "email", "first_" + suffix + "@test.nl",
-                "password", "password123"
-        );
+        Map<String, String> first = new HashMap<>();
+        first.put("username", "dupuser_" + suffix);
+        first.put("email", "first_" + suffix + "@test.nl");
+        first.put("password", "password123");
+
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(first)))
                 .andExpect(status().isCreated());
 
-        // Try with same username, different email
-        Map<String, String> second = Map.of(
-                "username", "dupuser_" + suffix,
-                "email", "second_" + suffix + "@test.nl",
-                "password", "password123"
-        );
+        // Try again with same username, different email
+        Map<String, String> second = new HashMap<>();
+        second.put("username", "dupuser_" + suffix);    // same username → conflict
+        second.put("email", "second_" + suffix + "@test.nl");
+        second.put("password", "password123");
 
         // Act & Assert
         mockMvc.perform(post("/api/auth/register")
@@ -77,11 +78,10 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
     @DisplayName("POST /api/auth/register - password too short - returns 400 Bad Request")
     void register_passwordTooShort_returns400() throws Exception {
         // Arrange
-        Map<String, String> body = Map.of(
-                "username", "shortpw",
-                "email", "shortpw@test.nl",
-                "password", "1234"   // less than 8 characters
-        );
+        Map<String, String> body = new HashMap<>();
+        body.put("username", "shortpw");
+        body.put("email", "shortpw@test.nl");
+        body.put("password", "1234");   // less than 8 characters → @Size validation fails
 
         // Act & Assert
         mockMvc.perform(post("/api/auth/register")
@@ -95,11 +95,10 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
     @DisplayName("POST /api/auth/register - username too short - returns 400 Bad Request")
     void register_usernameTooShort_returns400() throws Exception {
         // Arrange
-        Map<String, String> body = Map.of(
-                "username", "ab",   // min is 3
-                "email", "ab@test.nl",
-                "password", "password123"
-        );
+        Map<String, String> body = new HashMap<>();
+        body.put("username", "ab");     // min length is 3 → @Size validation fails
+        body.put("email", "ab@test.nl");
+        body.put("password", "password123");
 
         // Act & Assert
         mockMvc.perform(post("/api/auth/register")
@@ -118,10 +117,9 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
         String username = "loginuser_" + suffix;
         registerAndLogin(username, username + "@test.nl", "password123");
 
-        Map<String, String> loginBody = Map.of(
-                "username", username,
-                "password", "password123"
-        );
+        Map<String, String> loginBody = new HashMap<>();
+        loginBody.put("username", username);
+        loginBody.put("password", "password123");
 
         // Act & Assert
         mockMvc.perform(post("/api/auth/login")
@@ -136,10 +134,9 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
     @DisplayName("POST /api/auth/login - wrong password - returns 4xx error")
     void login_wrongPassword_returnsErrorResponse() throws Exception {
         // Arrange
-        Map<String, String> body = Map.of(
-                "username", "student1",  // seeded in V2__seed_users.sql
-                "password", "completelywrongpassword"
-        );
+        Map<String, String> body = new HashMap<>();
+        body.put("username", "student1");   // seeded in V2__seed_users.sql
+        body.put("password", "completelywrongpassword");
 
         // Act & Assert — a failed login must NEVER return 200
         mockMvc.perform(post("/api/auth/login")
@@ -152,10 +149,9 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
     @DisplayName("POST /api/auth/login - nonexistent user - same 4xx response class as wrong password")
     void login_nonexistentUser_returnsSameErrorClassAsWrongPassword() throws Exception {
         // Arrange
-        Map<String, String> body = Map.of(
-                "username", "userDoesNotExist",
-                "password", "password123"
-        );
+        Map<String, String> body = new HashMap<>();
+        body.put("username", "userDoesNotExist");
+        body.put("password", "password123");
 
         // Act & Assert — SECURITY: must not reveal that the username doesn't exist
         mockMvc.perform(post("/api/auth/login")

@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.noteplus.noteplus.dto.request.CreateCategoryRequest;
+import org.noteplus.noteplus.dto.request.PatchCategoryStatusRequest;
 import org.noteplus.noteplus.dto.request.UpdateCategoryRequest;
 import org.noteplus.noteplus.dto.response.CategoryResponse;
 import org.noteplus.noteplus.service.CategoryService;
@@ -77,6 +78,18 @@ public class CategoryController {
             @PathVariable UUID id,
             @Valid @RequestBody UpdateCategoryRequest request) {
         return ResponseEntity.ok(categoryService.update(id, request));
+    }
+
+    @PatchMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COACH')")
+    @Operation(summary = "Update category status (ACTIVE / INACTIVE)")
+    @ApiResponse(responseCode = "200", description = "Status updated")
+    @ApiResponse(responseCode = "403", description = "Insufficient role")
+    @ApiResponse(responseCode = "404", description = "Category not found")
+    public ResponseEntity<CategoryResponse> patchStatus(
+            @PathVariable UUID id,
+            @Valid @RequestBody PatchCategoryStatusRequest request) {
+        return ResponseEntity.ok(categoryService.updateStatus(id, request.status()));
     }
 
     @DeleteMapping("/{id}")

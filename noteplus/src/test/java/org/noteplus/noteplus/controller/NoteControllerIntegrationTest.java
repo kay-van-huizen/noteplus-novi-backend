@@ -71,7 +71,7 @@ class NoteControllerIntegrationTest extends BaseIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").isNumber())
+                .andExpect(jsonPath("$.id").isString())
                 .andExpect(jsonPath("$.title").value("Integration Test Note"))
                 .andExpect(jsonPath("$.ownerUsername").value("noteuser_" + suffix));
     }
@@ -121,7 +121,7 @@ class NoteControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 
-        Long noteId = objectMapper.readTree(createJson).get("id").asLong();
+        String noteId = objectMapper.readTree(createJson).get("id").asText();
 
         // Act — User2 tries to read User1's note
         mockMvc.perform(get("/api/notes/" + noteId)
@@ -147,7 +147,7 @@ class NoteControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 
-        Long noteId = objectMapper.readTree(createJson).get("id").asLong();
+        String noteId = objectMapper.readTree(createJson).get("id").asText();
 
         // Soft delete
         mockMvc.perform(delete("/api/notes/" + noteId)
@@ -177,7 +177,7 @@ class NoteControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 
-        Long noteId = objectMapper.readTree(createJson).get("id").asLong();
+        String noteId = objectMapper.readTree(createJson).get("id").asText();
 
         // Soft delete
         mockMvc.perform(delete("/api/notes/" + noteId)
@@ -189,7 +189,7 @@ class NoteControllerIntegrationTest extends BaseIntegrationTest {
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 // Assert — deleted note ID must not appear in the list
-                .andExpect(jsonPath("$[*].id", not(hasItem(noteId.intValue()))));
+                .andExpect(jsonPath("$[*].id", not(hasItem(noteId))));
     }
 
     // ── Validation ────────────────────────────────────────────────────────
