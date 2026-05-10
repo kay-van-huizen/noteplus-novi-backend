@@ -38,7 +38,7 @@ Geef voor elk punt ✅ (klaar), ⚠️ (gedeeltelijk) of ❌ (ontbreekt):
 - [ ] 2 service klassen getest met 100% line coverage
 - [ ] Minimaal 10 unit tests (Arrange-Act-Assert)
 - [ ] Minimaal 2 integratietests (MockMvc)
-- [ ] data.sql met testdata
+- [ ] Flyway migrations V1 + V2 aanwezig met seed data (roles + users)
 - [ ] Minimaal 20 commits
 - [ ] Minimaal 5 pull requests naar main
 
