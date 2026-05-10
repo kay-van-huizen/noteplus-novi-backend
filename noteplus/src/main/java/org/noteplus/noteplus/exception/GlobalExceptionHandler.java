@@ -46,6 +46,12 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse(400, "Bad Request", message, LocalDateTime.now()));
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
+        return ResponseEntity.status(400)
+                .body(new ErrorResponse(400, "Bad Request", ex.getMessage(), LocalDateTime.now()));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneral(Exception ex) {
         return ResponseEntity.status(500)
