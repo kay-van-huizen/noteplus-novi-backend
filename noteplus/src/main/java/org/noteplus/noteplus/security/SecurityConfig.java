@@ -36,43 +36,36 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(AbstractHttpConfigurer::disable)
+                .csrf(csrf -> csrf.disable())
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint((request, response, authException) -> {
-                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                            response.setContentType("application/json");
-                            response.getWriter().write("{\"error\": \"Unauthorized\"}");
-                        })
-                )
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/api/auth/**",
-                                "/categories/**",
-                                "/notes/**",
-                                "/learning-paths/**",
-                                "/api/notes/*/references/**",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
-                                "/login",
-                                "/login/**",
-                                "/register",
-                                "/register/**",
-                                "/logout-page",
-                                "/forgot-password",
-                                "/forgot-password/**",
-                                "/reset-password",
-                                "/reset-password/**",
-                                "/api/auth/forgot-password",
-                                "/api/auth/reset-password",
-                                "/error"
+                                "/",
+                                "/index.html",
+                                "/assets/**",
+                                "/favicon.ico",
+                                "/favicon.svg",
+                                "/static/**",
+                                "/*.js",
+                                "/*.css",
+                                "/*.svg"
                         ).permitAll()
-                        .anyRequest().authenticated()
+                        .requestMatchers("/api/**").authenticated()
+                        .anyRequest().permitAll()
                 )
-                .authenticationProvider(authenticationProvider())
+                .exceptionHandling(ex -> ex.authenticationEntryPoint((request, response, e) -> {
+                    if (request.getServletPath().startsWith("/api/")) {
+                        response.setStatus(401);
+                        response.setContentType("application/json");
+                        response.getWriter().write("{\"error\":\"Unauthorized\"}");
+                    }
+                }))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

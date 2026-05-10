@@ -40,11 +40,6 @@
             <artifactId>spring-boot-starter-webmvc</artifactId>
         </dependency>
         <dependency>
-            <groupId>gg.jte</groupId>
-            <artifactId>jte-spring-boot-starter-4</artifactId>
-            <version>3.2.4</version>
-        </dependency>
-        <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-model-anthropic</artifactId>
         </dependency>
