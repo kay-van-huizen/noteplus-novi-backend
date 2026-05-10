@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.noteplus.noteplus.dto.request.CreateCategoryRequest;
+import org.noteplus.noteplus.dto.request.PatchCategoryStatusRequest;
 import org.noteplus.noteplus.dto.request.UpdateCategoryRequest;
 import org.noteplus.noteplus.dto.response.CategoryResponse;
 import org.noteplus.noteplus.service.CategoryService;
@@ -16,6 +17,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/categories")
@@ -44,14 +46,14 @@ public class CategoryController {
     @Operation(summary = "Get category by ID")
     @ApiResponse(responseCode = "200", description = "Category found")
     @ApiResponse(responseCode = "404", description = "Category not found")
-    public ResponseEntity<CategoryResponse> getById(@PathVariable Long id) {
+    public ResponseEntity<CategoryResponse> getById(@PathVariable UUID id) {
         return ResponseEntity.ok(categoryService.getById(id));
     }
 
     @GetMapping("/{id}/children")
     @Operation(summary = "Get child categories")
     @ApiResponse(responseCode = "200", description = "Children retrieved")
-    public ResponseEntity<List<CategoryResponse>> getChildren(@PathVariable Long id) {
+    public ResponseEntity<List<CategoryResponse>> getChildren(@PathVariable UUID id) {
         return ResponseEntity.ok(categoryService.getChildren(id));
     }
 
@@ -73,9 +75,21 @@ public class CategoryController {
     @ApiResponse(responseCode = "403", description = "Insufficient role")
     @ApiResponse(responseCode = "404", description = "Category not found")
     public ResponseEntity<CategoryResponse> update(
-            @PathVariable Long id,
+            @PathVariable UUID id,
             @Valid @RequestBody UpdateCategoryRequest request) {
         return ResponseEntity.ok(categoryService.update(id, request));
+    }
+
+    @PatchMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COACH')")
+    @Operation(summary = "Update category status (ACTIVE / INACTIVE)")
+    @ApiResponse(responseCode = "200", description = "Status updated")
+    @ApiResponse(responseCode = "403", description = "Insufficient role")
+    @ApiResponse(responseCode = "404", description = "Category not found")
+    public ResponseEntity<CategoryResponse> patchStatus(
+            @PathVariable UUID id,
+            @Valid @RequestBody PatchCategoryStatusRequest request) {
+        return ResponseEntity.ok(categoryService.updateStatus(id, request.status()));
     }
 
     @DeleteMapping("/{id}")
@@ -84,7 +98,7 @@ public class CategoryController {
     @ApiResponse(responseCode = "204", description = "Category deleted")
     @ApiResponse(responseCode = "403", description = "Has subcategories or insufficient role")
     @ApiResponse(responseCode = "404", description = "Category not found")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@PathVariable UUID id) {
         categoryService.delete(id);
         return ResponseEntity.noContent().build();
     }

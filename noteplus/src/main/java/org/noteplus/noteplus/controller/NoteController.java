@@ -17,6 +17,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/notes")
@@ -48,14 +49,14 @@ public class NoteController {
     @ApiResponse(responseCode = "200", description = "Note found")
     @ApiResponse(responseCode = "403", description = "Not your note")
     @ApiResponse(responseCode = "404", description = "Note not found or already deleted")
-    public ResponseEntity<NoteResponse> getById(@PathVariable Long id, Authentication auth) {
+    public ResponseEntity<NoteResponse> getById(@PathVariable UUID id, Authentication auth) {
         return ResponseEntity.ok(noteService.getById(id, auth.getName()));
     }
 
     @GetMapping("/category/{categoryId}")
     @Operation(summary = "Get notes filtered by category")
     @ApiResponse(responseCode = "200", description = "Notes retrieved")
-    public ResponseEntity<List<NoteResponse>> getByCategory(@PathVariable Long categoryId) {
+    public ResponseEntity<List<NoteResponse>> getByCategory(@PathVariable UUID categoryId) {
         return ResponseEntity.ok(noteService.getByCategoryId(categoryId));
     }
 
@@ -76,7 +77,7 @@ public class NoteController {
     @ApiResponse(responseCode = "403", description = "Not your note")
     @ApiResponse(responseCode = "404", description = "Note not found")
     public ResponseEntity<NoteResponse> update(
-            @PathVariable Long id,
+            @PathVariable UUID id,
             @Valid @RequestBody UpdateNoteRequest request,
             Authentication auth) {
         return ResponseEntity.ok(noteService.update(id, request, auth.getName()));
@@ -87,7 +88,7 @@ public class NoteController {
     @ApiResponse(responseCode = "204", description = "Note soft-deleted successfully")
     @ApiResponse(responseCode = "403", description = "Not your note")
     @ApiResponse(responseCode = "404", description = "Note not found")
-    public ResponseEntity<Void> delete(@PathVariable Long id, Authentication auth) {
+    public ResponseEntity<Void> delete(@PathVariable UUID id, Authentication auth) {
         noteService.delete(id, auth.getName());
         return ResponseEntity.noContent().build();
     }

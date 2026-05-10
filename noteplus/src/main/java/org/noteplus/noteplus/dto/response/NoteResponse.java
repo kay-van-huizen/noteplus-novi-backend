@@ -1,13 +1,14 @@
 package org.noteplus.noteplus.dto.response;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 public record NoteResponse(
-        Long id,
+        UUID id,
         String title,
         String content,
         String ownerUsername,
-        Long categoryId,
+        UUID categoryId,
         String categoryTitle,
         LocalDateTime createdAt,
         LocalDateTime updatedAt

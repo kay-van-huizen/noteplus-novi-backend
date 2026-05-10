@@ -14,8 +14,10 @@ import org.noteplus.noteplus.repository.NoteRepository;
 import org.noteplus.noteplus.repository.UserRepository;
 import org.noteplus.noteplus.service.LearningPathService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -26,14 +28,15 @@ public class LearningPathServiceImpl implements LearningPathService {
     private final NoteRepository noteRepository;
 
     @Override
+    @Transactional
     public LearningPathResponse create(CreateLearningPathRequest request, String username) {
         userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        var student = userRepository.findByLongId(request.studentId())
+        var student = userRepository.findById(request.studentId())
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found"));
 
-        var coach = userRepository.findByLongId(request.coachId())
+        var coach = userRepository.findById(request.coachId())
                 .orElseThrow(() -> new ResourceNotFoundException("Coach not found"));
 
         var lp = new LearningPath();
@@ -46,13 +49,15 @@ public class LearningPathServiceImpl implements LearningPathService {
     }
 
     @Override
-    public LearningPathResponse getById(Long id, String username) {
+    @Transactional(readOnly = true)
+    public LearningPathResponse getById(UUID id, String username) {
         var lp = findOrThrow(id);
-        checkParticipant(lp, username);
+        checkAccess(lp, username);
         return toResponse(lp);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<LearningPathResponse> getAllForUser(String username) {
         return learningPathRepository.findAllByUsername(username).stream()
                 .map(this::toResponse)
@@ -60,6 +65,7 @@ public class LearningPathServiceImpl implements LearningPathService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<LearningPathResponse> getAll() {
         return learningPathRepository.findAll().stream()
                 .map(this::toResponse)
@@ -67,9 +73,10 @@ public class LearningPathServiceImpl implements LearningPathService {
     }
 
     @Override
-    public LearningPathResponse update(Long id, UpdateLearningPathRequest request, String username) {
+    @Transactional
+    public LearningPathResponse update(UUID id, UpdateLearningPathRequest request, String username) {
         var lp = findOrThrow(id);
-        checkParticipant(lp, username);
+        checkAccess(lp, username);
 
         lp.setTitle(request.title());
         lp.setDescription(request.description());
@@ -78,10 +85,14 @@ public class LearningPathServiceImpl implements LearningPathService {
     }
 
     @Override
-    public void delete(Long id, String username) {
+    @Transactional
+    public void delete(UUID id, String username) {
         var lp = findOrThrow(id);
 
-        if (!lp.getCoach().getUsername().equals(username)) {
+        boolean isAdmin = isAdmin(username);
+        boolean isCoach = lp.getCoach().getUsername().equals(username);
+
+        if (!isAdmin && !isCoach) {
             throw new ForbiddenException("Only the coach or admin can delete a learning path");
         }
 
@@ -89,9 +100,10 @@ public class LearningPathServiceImpl implements LearningPathService {
     }
 
     @Override
-    public LearningPathResponse addNote(Long learningPathId, Long noteId, String username) {
+    @Transactional
+    public LearningPathResponse addNote(UUID learningPathId, UUID noteId, String username) {
         var lp = findOrThrow(learningPathId);
-        checkParticipant(lp, username);
+        checkAccess(lp, username);
 
         var note = noteRepository.findByIdNotDeleted(noteId)
                 .orElseThrow(() -> new ResourceNotFoundException("Note not found"));
@@ -106,9 +118,10 @@ public class LearningPathServiceImpl implements LearningPathService {
     }
 
     @Override
-    public LearningPathResponse removeNote(Long learningPathId, Long noteId, String username) {
+    @Transactional
+    public LearningPathResponse removeNote(UUID learningPathId, UUID noteId, String username) {
         var lp = findOrThrow(learningPathId);
-        checkParticipant(lp, username);
+        checkAccess(lp, username);
 
         boolean removed = lp.getNotes().removeIf(n -> n.getId().equals(noteId));
         if (!removed) {
@@ -118,17 +131,24 @@ public class LearningPathServiceImpl implements LearningPathService {
         return toResponse(learningPathRepository.save(lp));
     }
 
-    private LearningPath findOrThrow(Long id) {
+    private LearningPath findOrThrow(UUID id) {
         return learningPathRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Learning path not found: " + id));
     }
 
-    private void checkParticipant(LearningPath lp, String username) {
+    private void checkAccess(LearningPath lp, String username) {
+        if (isAdmin(username)) return;
         boolean isStudent = lp.getStudent().getUsername().equals(username);
         boolean isCoach = lp.getCoach().getUsername().equals(username);
         if (!isStudent && !isCoach) {
             throw new ForbiddenException("You do not have access to this learning path");
         }
+    }
+
+    private boolean isAdmin(String username) {
+        return userRepository.findByUsername(username)
+                .map(u -> u.getRoles().stream().anyMatch(r -> r.getName().equals("ROLE_ADMIN")))
+                .orElse(false);
     }
 
     private LearningPathResponse toResponse(LearningPath lp) {

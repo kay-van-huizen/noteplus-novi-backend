@@ -12,9 +12,11 @@ import org.noteplus.noteplus.repository.NoteRepository;
 import org.noteplus.noteplus.repository.UserRepository;
 import org.noteplus.noteplus.service.NoteService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +27,7 @@ public class NoteServiceImpl implements NoteService {
     private final CategoryRepository categoryRepository;
 
     @Override
+    @Transactional
     public NoteResponse create(CreateNoteRequest request, String username) {
         var user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
@@ -44,11 +47,12 @@ public class NoteServiceImpl implements NoteService {
     }
 
     @Override
-    public NoteResponse getById(Long id, String username) {
+    @Transactional(readOnly = true)
+    public NoteResponse getById(UUID id, String username) {
         var note = noteRepository.findByIdNotDeleted(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Note not found: " + id));
 
-        if (!note.getUser().getUsername().equals(username)) {
+        if (!note.getUser().getUsername().equals(username) && !isAdmin(username)) {
             throw new ForbiddenException("You do not have access to this note");
         }
 
@@ -56,6 +60,7 @@ public class NoteServiceImpl implements NoteService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<NoteResponse> getAllForUser(String username) {
         return noteRepository.findAllByUsernameNotDeleted(username).stream()
                 .map(this::toResponse)
@@ -63,6 +68,7 @@ public class NoteServiceImpl implements NoteService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<NoteResponse> getAll() {
         return noteRepository.findAllNotDeleted().stream()
                 .map(this::toResponse)
@@ -70,18 +76,20 @@ public class NoteServiceImpl implements NoteService {
     }
 
     @Override
-    public List<NoteResponse> getByCategoryId(Long categoryId) {
+    @Transactional(readOnly = true)
+    public List<NoteResponse> getByCategoryId(UUID categoryId) {
         return noteRepository.findByCategoryIdNotDeleted(categoryId).stream()
                 .map(this::toResponse)
                 .toList();
     }
 
     @Override
-    public NoteResponse update(Long id, UpdateNoteRequest request, String username) {
+    @Transactional
+    public NoteResponse update(UUID id, UpdateNoteRequest request, String username) {
         var note = noteRepository.findByIdNotDeleted(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Note not found: " + id));
 
-        if (!note.getUser().getUsername().equals(username)) {
+        if (!note.getUser().getUsername().equals(username) && !isAdmin(username)) {
             throw new ForbiddenException("You do not own this note");
         }
 
@@ -100,16 +108,23 @@ public class NoteServiceImpl implements NoteService {
     }
 
     @Override
-    public void delete(Long id, String username) {
+    @Transactional
+    public void delete(UUID id, String username) {
         var note = noteRepository.findByIdNotDeleted(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Note not found: " + id));
 
-        if (!note.getUser().getUsername().equals(username)) {
+        if (!note.getUser().getUsername().equals(username) && !isAdmin(username)) {
             throw new ForbiddenException("You do not own this note");
         }
 
         note.setDeletedAt(LocalDateTime.now());
         noteRepository.save(note);
+    }
+
+    private boolean isAdmin(String username) {
+        return userRepository.findByUsername(username)
+                .map(u -> u.getRoles().stream().anyMatch(r -> r.getName().equals("ROLE_ADMIN")))
+                .orElse(false);
     }
 
     private NoteResponse toResponse(Note n) {
