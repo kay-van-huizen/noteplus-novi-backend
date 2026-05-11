@@ -60,11 +60,9 @@ public class SecurityConfig {
                         .anyRequest().permitAll()
                 )
                 .exceptionHandling(ex -> ex.authenticationEntryPoint((request, response, e) -> {
-                    if (request.getServletPath().startsWith("/api/")) {
-                        response.setStatus(401);
-                        response.setContentType("application/json");
-                        response.getWriter().write("{\"error\":\"Unauthorized\"}");
-                    }
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"error\":\"Unauthorized\"}");
                 }))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
