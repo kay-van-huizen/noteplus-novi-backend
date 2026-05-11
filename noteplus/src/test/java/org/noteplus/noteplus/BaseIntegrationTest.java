@@ -1,14 +1,12 @@
 package org.noteplus.noteplus;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.junit.jupiter.api.BeforeEach;
 import org.noteplus.noteplus.entity.Role;
 import org.noteplus.noteplus.repository.RoleRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -32,21 +30,12 @@ public abstract class BaseIntegrationTest {
     private WebApplicationContext context;
 
     @Autowired
-    protected ObjectMapper objectMapper;
-
-    protected MockMvc mockMvc;
-
-    @Autowired
     private RoleRepository roleRepository;
 
-    @TestConfiguration
-    static class TestConfig {
-        @Bean
-        @Primary
-        ObjectMapper objectMapper() {
-            return new ObjectMapper().findAndRegisterModules();
-        }
-    }
+    protected final ObjectMapper objectMapper = new ObjectMapper()
+            .registerModule(new JavaTimeModule());
+
+    protected MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
