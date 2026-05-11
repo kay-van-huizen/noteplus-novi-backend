@@ -99,41 +99,20 @@
             <artifactId>jakarta.annotation-api</artifactId>
         </dependency>
 
-        <!-- ── Test ────────────────────────────────────────────────────── -->
+        <!-- ── Test ─────────────────────────────────────────────────────── -->
         <dependency>
-            <!-- JUnit 5, Mockito, AssertJ, MockMvc base infrastructure -->
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <!-- Spring Boot 4: @AutoConfigureMockMvc lives here -->
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-webmvc-test</artifactId>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <!-- @WithMockUser, SecurityMockMvcConfigurers.springSecurity() -->
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-security-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <!-- @Testcontainers and @Container annotations — artifact ID is junit-jupiter, NOT testcontainers-junit-jupiter -->
-            <groupId>org.testcontainers</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <!-- PostgreSQL Testcontainer module — version managed by spring-boot-testcontainers BOM -->
-            <groupId>org.testcontainers</groupId>
-            <artifactId>postgresql</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <!-- @ServiceConnection — wires Testcontainer to Spring datasource automatically -->
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-testcontainers</artifactId>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -149,7 +128,14 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
-
+    <repositories>
+        <repository>
+            <id>spring-milestones</id>
+            <name>Spring Milestones</name>
+            <url>https://repo.spring.io/milestone</url>
+            <snapshots><enabled>false</enabled></snapshots>
+        </repository>
+    </repositories>
     <build>
         <plugins>
             <plugin>

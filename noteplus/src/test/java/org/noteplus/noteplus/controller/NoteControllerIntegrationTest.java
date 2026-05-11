@@ -4,229 +4,234 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.noteplus.noteplus.BaseIntegrationTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MvcResult;
 
 import java.util.Map;
 import java.util.UUID;
 
-import static org.hamcrest.Matchers.*;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/**
- * Integration tests for NoteController.
- * Tests the JWT filter, ownership enforcement, and soft delete against a real PostgreSQL database.
- */
 class NoteControllerIntegrationTest extends BaseIntegrationTest {
 
-    // ── Authentication guard ───────────────────────────────────────────────
+    // ── Authentication guard ─────────────────────────────────────────────────
 
     @Test
-    @DisplayName("GET /api/notes - no token - returns 401 Unauthorized")
-    void getNotes_withoutToken_returns401() throws Exception {
+    @DisplayName("GET /api/notes without token - returns 401 with error='Unauthorized'")
+    void getMyNotes_withoutToken_returns401WithUnauthorizedError() throws Exception {
         // Act & Assert
-        mockMvc.perform(get("/api/notes"))
+        MvcResult result = mockMvc.perform(get("/api/notes"))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.error").value("Unauthorized"));
+                .andReturn();
+
+        assertThat(result.getResponse().getContentAsString()).contains("Unauthorized");
     }
 
     @Test
-    @DisplayName("POST /api/notes - no token - returns 401 Unauthorized")
+    @DisplayName("POST /api/notes without token - returns 401")
     void createNote_withoutToken_returns401() throws Exception {
         // Arrange
-        Map<String, Object> body = Map.of("title", "Test", "content", "Content");
+        var body = Map.of("title", "Test", "content", "Content");
 
         // Act & Assert
         mockMvc.perform(post("/api/notes")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(body)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
-    @DisplayName("GET /api/notes - invalid token - returns 401 Unauthorized")
-    void getNotes_withInvalidToken_returns401() throws Exception {
+    @DisplayName("GET /api/notes with invalid token - returns 401")
+    void getMyNotes_withInvalidToken_returns401() throws Exception {
         // Act & Assert
         mockMvc.perform(get("/api/notes")
-                        .header("Authorization", "Bearer this.is.not.a.valid.token"))
+                .header("Authorization", "Bearer this.is.not.a.valid.token"))
                 .andExpect(status().isUnauthorized());
     }
 
-    // ── CRUD happy paths ───────────────────────────────────────────────────
+    // ── CRUD happy paths ─────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("POST /api/notes - valid token and body - returns 201 with created note")
-    void createNote_withValidToken_returns201() throws Exception {
+    @DisplayName("POST /api/notes with valid token - returns 201 with id, correct title, and ownerUsername")
+    void createNote_withValidToken_returns201WithNoteFields() throws Exception {
         // Arrange
-        String suffix = UUID.randomUUID().toString().substring(0, 8);
-        String token = registerAndLogin("noteuser_" + suffix, suffix + "@test.nl", "password123");
+        String s = UUID.randomUUID().toString().substring(0, 8);
+        String token = registerAndLogin("user_" + s, s + "@test.com", "password123");
+        var body = Map.of("title", "My First Note", "content", "Some content here");
 
-        Map<String, Object> body = Map.of(
-                "title", "Integration Test Note",
-                "content", "This note was created during an integration test"
-        );
-
-        // Act & Assert
-        mockMvc.perform(post("/api/notes")
-                        .header("Authorization", "Bearer " + token)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(body)))
+        // Act
+        MvcResult result = mockMvc.perform(post("/api/notes")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").isString())
-                .andExpect(jsonPath("$.title").value("Integration Test Note"))
-                .andExpect(jsonPath("$.ownerUsername").value("noteuser_" + suffix));
+                .andReturn();
+
+        // Assert
+        var json = objectMapper.readTree(result.getResponse().getContentAsString());
+        assertThat(json.get("id").asText()).isNotEmpty();
+        assertThat(json.get("title").asText()).isEqualTo("My First Note");
+        assertThat(json.get("ownerUsername").asText()).isEqualTo("user_" + s);
     }
 
     @Test
-    @DisplayName("GET /api/notes - authenticated user - returns only own notes")
-    void getNotes_authenticated_returnsOnlyOwnNotes() throws Exception {
-        // Arrange — two separate users
-        String suffix1 = UUID.randomUUID().toString().substring(0, 8);
-        String suffix2 = UUID.randomUUID().toString().substring(0, 8);
-        String token1 = registerAndLogin("user1_" + suffix1, suffix1 + "@test.nl", "password123");
-        String token2 = registerAndLogin("user2_" + suffix2, suffix2 + "@test.nl", "password123");
+    @DisplayName("GET /api/notes authenticated - returns 200 with only current user's notes (user2 cannot see user1's notes)")
+    void getMyNotes_authenticated_returnsOnlyOwnNotes() throws Exception {
+        // Arrange
+        String s1 = UUID.randomUUID().toString().substring(0, 8);
+        String s2 = UUID.randomUUID().toString().substring(0, 8);
+        String token1 = registerAndLogin("user1_" + s1, s1 + "@test.com", "password123");
+        String token2 = registerAndLogin("user2_" + s2, s2 + "@test.com", "password123");
 
-        // User1 creates a note
-        Map<String, Object> noteBody = Map.of("title", "User1 Note", "content", "Only for user1");
         mockMvc.perform(post("/api/notes")
-                        .header("Authorization", "Bearer " + token1)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(noteBody)))
+                .header("Authorization", "Bearer " + token1)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("title", "User1 Note", "content", "private"))))
                 .andExpect(status().isCreated());
 
-        // Act — User2 fetches their own notes
-        mockMvc.perform(get("/api/notes")
-                        .header("Authorization", "Bearer " + token2))
+        // Act
+        MvcResult result = mockMvc.perform(get("/api/notes")
+                .header("Authorization", "Bearer " + token2))
                 .andExpect(status().isOk())
-                // User1's note must NOT appear in User2's list
-                .andExpect(jsonPath("$[*].ownerUsername", not(hasItem("user1_" + suffix1))));
+                .andReturn();
+
+        // Assert
+        assertThat(result.getResponse().getContentAsString()).doesNotContain("user1_" + s1);
     }
 
-    // ── Ownership enforcement ──────────────────────────────────────────────
+    // ── Ownership enforcement ────────────────────────────────────────────────
 
     @Test
-    @DisplayName("GET /api/notes/{id} - accessing another user's note - returns 403 Forbidden")
-    void getById_accessingOtherUsersNote_returns403() throws Exception {
-        // Arrange — two users
-        String suffix1 = UUID.randomUUID().toString().substring(0, 8);
-        String suffix2 = UUID.randomUUID().toString().substring(0, 8);
-        String token1 = registerAndLogin("owner_" + suffix1, suffix1 + "@test.nl", "password123");
-        String token2 = registerAndLogin("other_" + suffix2, suffix2 + "@test.nl", "password123");
+    @DisplayName("GET /api/notes/{id} as a different user - returns 403 with status=403")
+    void getById_differentUser_returns403WithStatus() throws Exception {
+        // Arrange
+        String s1 = UUID.randomUUID().toString().substring(0, 8);
+        String s2 = UUID.randomUUID().toString().substring(0, 8);
+        String token1 = registerAndLogin("user1_" + s1, s1 + "@test.com", "password123");
+        String token2 = registerAndLogin("user2_" + s2, s2 + "@test.com", "password123");
 
-        // User1 creates a note
-        Map<String, Object> noteBody = Map.of("title", "Private Note", "content", "Secret content");
-        String createJson = mockMvc.perform(post("/api/notes")
-                        .header("Authorization", "Bearer " + token1)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(noteBody)))
+        MvcResult createResult = mockMvc.perform(post("/api/notes")
+                .header("Authorization", "Bearer " + token1)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("title", "Private Note", "content", "secret"))))
                 .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
+                .andReturn();
 
-        String noteId = objectMapper.readTree(createJson).get("id").asText();
+        String noteId = objectMapper.readTree(createResult.getResponse().getContentAsString())
+                .get("id").asText();
 
-        // Act — User2 tries to read User1's note
-        mockMvc.perform(get("/api/notes/" + noteId)
-                        .header("Authorization", "Bearer " + token2))
+        // Act
+        MvcResult result = mockMvc.perform(get("/api/notes/" + noteId)
+                .header("Authorization", "Bearer " + token2))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.status").value(403));
+                .andReturn();
+
+        // Assert
+        var json = objectMapper.readTree(result.getResponse().getContentAsString());
+        assertThat(json.get("status").asInt()).isEqualTo(403);
     }
 
-    // ── Soft delete ────────────────────────────────────────────────────────
+    // ── Soft delete ──────────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("DELETE /api/notes/{id} then GET /{id} - soft deleted note returns 404")
-    void delete_softDeletedNote_subsequentGetReturns404() throws Exception {
+    @DisplayName("DELETE /api/notes/{id} then GET /api/notes/{id} - delete returns 204, subsequent GET returns 404 with status=404")
+    void delete_thenGetById_returns204Then404() throws Exception {
         // Arrange
-        String suffix = UUID.randomUUID().toString().substring(0, 8);
-        String token = registerAndLogin("deluser_" + suffix, suffix + "@test.nl", "password123");
+        String s = UUID.randomUUID().toString().substring(0, 8);
+        String token = registerAndLogin("user_" + s, s + "@test.com", "password123");
 
-        Map<String, Object> noteBody = Map.of("title", "To Be Deleted", "content", "Delete me");
-        String createJson = mockMvc.perform(post("/api/notes")
-                        .header("Authorization", "Bearer " + token)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(noteBody)))
+        MvcResult createResult = mockMvc.perform(post("/api/notes")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("title", "To Delete", "content", "bye"))))
                 .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
+                .andReturn();
 
-        String noteId = objectMapper.readTree(createJson).get("id").asText();
+        String noteId = objectMapper.readTree(createResult.getResponse().getContentAsString())
+                .get("id").asText();
 
-        // Soft delete
+        // Act
         mockMvc.perform(delete("/api/notes/" + noteId)
-                        .header("Authorization", "Bearer " + token))
+                .header("Authorization", "Bearer " + token))
                 .andExpect(status().isNoContent());
 
-        // Act — try to GET the deleted note
-        mockMvc.perform(get("/api/notes/" + noteId)
-                        .header("Authorization", "Bearer " + token))
-                // Assert — soft deleted note must be invisible (not 200 or 403)
+        // Assert
+        MvcResult getResult = mockMvc.perform(get("/api/notes/" + noteId)
+                .header("Authorization", "Bearer " + token))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.status").value(404));
+                .andReturn();
+
+        var json = objectMapper.readTree(getResult.getResponse().getContentAsString());
+        assertThat(json.get("status").asInt()).isEqualTo(404);
     }
 
     @Test
-    @DisplayName("DELETE /api/notes/{id} - soft deleted note disappears from GET /api/notes list")
-    void delete_softDeletedNote_disappearsFromList() throws Exception {
+    @DisplayName("DELETE /api/notes/{id} then GET /api/notes - deleted note's id no longer appears in the list")
+    void delete_thenList_deletedNoteAbsentFromList() throws Exception {
         // Arrange
-        String suffix = UUID.randomUUID().toString().substring(0, 8);
-        String token = registerAndLogin("listuser_" + suffix, suffix + "@test.nl", "password123");
+        String s = UUID.randomUUID().toString().substring(0, 8);
+        String token = registerAndLogin("user_" + s, s + "@test.com", "password123");
 
-        Map<String, Object> noteBody = Map.of("title", "Listed Note", "content", "I will vanish");
-        String createJson = mockMvc.perform(post("/api/notes")
-                        .header("Authorization", "Bearer " + token)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(noteBody)))
+        MvcResult createResult = mockMvc.perform(post("/api/notes")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("title", "Soft Delete Me", "content", "gone"))))
                 .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
+                .andReturn();
 
-        String noteId = objectMapper.readTree(createJson).get("id").asText();
+        String noteId = objectMapper.readTree(createResult.getResponse().getContentAsString())
+                .get("id").asText();
 
-        // Soft delete
         mockMvc.perform(delete("/api/notes/" + noteId)
-                        .header("Authorization", "Bearer " + token))
+                .header("Authorization", "Bearer " + token))
                 .andExpect(status().isNoContent());
 
-        // Act — fetch the list
-        mockMvc.perform(get("/api/notes")
-                        .header("Authorization", "Bearer " + token))
+        // Act
+        MvcResult listResult = mockMvc.perform(get("/api/notes")
+                .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                // Assert — deleted note ID must not appear in the list
-                .andExpect(jsonPath("$[*].id", not(hasItem(noteId))));
+                .andReturn();
+
+        // Assert
+        assertThat(listResult.getResponse().getContentAsString()).doesNotContain(noteId);
     }
 
-    // ── Validation ────────────────────────────────────────────────────────
+    // ── Validation ───────────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("POST /api/notes - empty title - returns 400 Bad Request")
-    void createNote_emptyTitle_returns400() throws Exception {
+    @DisplayName("POST /api/notes with empty title - returns 400 with status=400")
+    void createNote_emptyTitle_returns400WithStatus() throws Exception {
         // Arrange
-        String suffix = UUID.randomUUID().toString().substring(0, 8);
-        String token = registerAndLogin("valuser_" + suffix, suffix + "@test.nl", "password123");
+        String s = UUID.randomUUID().toString().substring(0, 8);
+        String token = registerAndLogin("user_" + s, s + "@test.com", "password123");
+        var body = Map.of("title", "", "content", "Some content");
 
-        Map<String, Object> body = Map.of(
-                "title", "",        // @NotBlank should reject this
-                "content", "Valid content"
-        );
-
-        // Act & Assert
-        mockMvc.perform(post("/api/notes")
-                        .header("Authorization", "Bearer " + token)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(body)))
+        // Act
+        MvcResult result = mockMvc.perform(post("/api/notes")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.status").value(400));
+                .andReturn();
+
+        // Assert
+        var json = objectMapper.readTree(result.getResponse().getContentAsString());
+        assertThat(json.get("status").asInt()).isEqualTo(400);
     }
 
-    // ── Admin-only endpoint ────────────────────────────────────────────────
+    // ── Admin-only endpoint ──────────────────────────────────────────────────
 
     @Test
-    @DisplayName("GET /api/notes/all - non-admin (student) user - returns 403 Forbidden")
-    void getAllNotes_nonAdminUser_returns403() throws Exception {
-        // Arrange — register returns a ROLE_STUDENT by default
-        String suffix = UUID.randomUUID().toString().substring(0, 8);
-        String token = registerAndLogin("student_" + suffix, suffix + "@test.nl", "password123");
+    @DisplayName("GET /api/notes/all as a student (registered via registerAndLogin) - returns 403")
+    void getAll_asStudent_returns403() throws Exception {
+        // Arrange
+        String s = UUID.randomUUID().toString().substring(0, 8);
+        String token = registerAndLogin("student_" + s, s + "@test.com", "password123");
 
         // Act & Assert
         mockMvc.perform(get("/api/notes/all")
-                        .header("Authorization", "Bearer " + token))
+                .header("Authorization", "Bearer " + token))
                 .andExpect(status().isForbidden());
     }
 }

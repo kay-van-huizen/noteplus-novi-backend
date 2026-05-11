@@ -4,159 +4,156 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.noteplus.noteplus.BaseIntegrationTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MvcResult;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import static org.hamcrest.Matchers.*;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/**
- * Integration tests for AuthController.
- * Covers the full HTTP chain: request → JWT filter → controller → service → PostgreSQL.
- */
 class AuthControllerIntegrationTest extends BaseIntegrationTest {
 
-    // ── POST /api/auth/register ────────────────────────────────────────────
+    // ── POST /api/auth/register ──────────────────────────────────────────────
 
     @Test
-    @DisplayName("POST /api/auth/register - valid request - returns 201 with token and ROLE_STUDENT")
-    void register_validRequest_returns201WithToken() throws Exception {
+    @DisplayName("register - valid body - 201 with non-empty token, correct username, roles contains ROLE_STUDENT")
+    void register_validBody_returns201WithTokenAndStudentRole() throws Exception {
         // Arrange
-        // RegisterRequest fields: username, email, password (no name field)
-        String suffix = UUID.randomUUID().toString().substring(0, 8);
-        Map<String, String> body = new HashMap<>();
-        body.put("username", "user_" + suffix);
-        body.put("email", suffix + "@test.nl");
-        body.put("password", "password123");
+        String s = UUID.randomUUID().toString().substring(0, 8);
+        var body = Map.of("username", "user_" + s, "email", s + "@test.com", "password", "password123");
 
-        // Act & Assert
-        mockMvc.perform(post("/api/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(body)))
+        // Act
+        MvcResult result = mockMvc.perform(post("/api/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.token").isNotEmpty())
-                .andExpect(jsonPath("$.username").value("user_" + suffix))
-                .andExpect(jsonPath("$.roles").isArray())
-                // hasItem: order-safe — roles is backed by a Set internally
-                .andExpect(jsonPath("$.roles", hasItem("ROLE_STUDENT")));
+                .andReturn();
+
+        // Assert
+        var json = objectMapper.readTree(result.getResponse().getContentAsString());
+        assertThat(json.get("token").asText()).isNotEmpty();
+        assertThat(json.get("username").asText()).isEqualTo("user_" + s);
+        assertThat(json.get("roles").toString()).contains("ROLE_STUDENT");
     }
 
     @Test
-    @DisplayName("POST /api/auth/register - duplicate username - returns 409 Conflict")
-    void register_duplicateUsername_returns409() throws Exception {
-        // Arrange — register once successfully
-        String suffix = UUID.randomUUID().toString().substring(0, 8);
-        Map<String, String> first = new HashMap<>();
-        first.put("username", "dupuser_" + suffix);
-        first.put("email", "first_" + suffix + "@test.nl");
-        first.put("password", "password123");
-
+    @DisplayName("register - duplicate username - second call returns 409 with status=409 and message containing 'Username'")
+    void register_duplicateUsername_returns409WithDuplicateMessage() throws Exception {
+        // Arrange
+        String s = UUID.randomUUID().toString().substring(0, 8);
+        var first = Map.of("username", "dup_" + s, "email", s + "@test.com", "password", "password123");
         mockMvc.perform(post("/api/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(first)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(first)))
                 .andExpect(status().isCreated());
 
-        // Try again with same username, different email
-        Map<String, String> second = new HashMap<>();
-        second.put("username", "dupuser_" + suffix);    // same username → conflict
-        second.put("email", "second_" + suffix + "@test.nl");
-        second.put("password", "password123");
+        var second = Map.of("username", "dup_" + s, "email", "other_" + s + "@test.com", "password", "password123");
 
-        // Act & Assert
-        mockMvc.perform(post("/api/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(second)))
+        // Act
+        MvcResult result = mockMvc.perform(post("/api/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(second)))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.status").value(409))
-                .andExpect(jsonPath("$.message").value(containsString("Username")));
+                .andReturn();
+
+        // Assert
+        var json = objectMapper.readTree(result.getResponse().getContentAsString());
+        assertThat(json.get("status").asInt()).isEqualTo(409);
+        assertThat(json.get("message").asText()).contains("Username");
     }
 
     @Test
-    @DisplayName("POST /api/auth/register - password too short - returns 400 Bad Request")
+    @DisplayName("register - password shorter than 8 characters - returns 400 with status=400")
     void register_passwordTooShort_returns400() throws Exception {
         // Arrange
-        Map<String, String> body = new HashMap<>();
-        body.put("username", "shortpw");
-        body.put("email", "shortpw@test.nl");
-        body.put("password", "1234");   // less than 8 characters → @Size validation fails
+        String s = UUID.randomUUID().toString().substring(0, 8);
+        var body = Map.of("username", "user_" + s, "email", s + "@test.com", "password", "short");
 
-        // Act & Assert
-        mockMvc.perform(post("/api/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(body)))
+        // Act
+        MvcResult result = mockMvc.perform(post("/api/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.status").value(400));
+                .andReturn();
+
+        // Assert
+        var json = objectMapper.readTree(result.getResponse().getContentAsString());
+        assertThat(json.get("status").asInt()).isEqualTo(400);
     }
 
     @Test
-    @DisplayName("POST /api/auth/register - username too short - returns 400 Bad Request")
+    @DisplayName("register - username shorter than 3 characters - returns 400")
     void register_usernameTooShort_returns400() throws Exception {
         // Arrange
-        Map<String, String> body = new HashMap<>();
-        body.put("username", "ab");     // min length is 3 → @Size validation fails
-        body.put("email", "ab@test.nl");
-        body.put("password", "password123");
+        String s = UUID.randomUUID().toString().substring(0, 8);
+        var body = Map.of("username", "ab", "email", s + "@test.com", "password", "password123");
 
         // Act & Assert
         mockMvc.perform(post("/api/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(body)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isBadRequest());
     }
 
-    // ── POST /api/auth/login ───────────────────────────────────────────────
+    // ── POST /api/auth/login ─────────────────────────────────────────────────
 
     @Test
-    @DisplayName("POST /api/auth/login - valid credentials - returns 200 with JWT token")
-    void login_validCredentials_returns200WithToken() throws Exception {
-        // Arrange — create user first
-        String suffix = UUID.randomUUID().toString().substring(0, 8);
-        String username = "loginuser_" + suffix;
-        registerAndLogin(username, username + "@test.nl", "password123");
+    @DisplayName("login - valid credentials (register first then login) - 200 with non-empty token and correct username")
+    void login_validCredentials_returns200WithTokenAndUsername() throws Exception {
+        // Arrange
+        String s = UUID.randomUUID().toString().substring(0, 8);
+        String username = "user_" + s;
+        String email = s + "@test.com";
+        registerAndLogin(username, email, "password123");
 
-        Map<String, String> loginBody = new HashMap<>();
-        loginBody.put("username", username);
-        loginBody.put("password", "password123");
+        var loginBody = Map.of("username", username, "password", "password123");
 
-        // Act & Assert
-        mockMvc.perform(post("/api/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(loginBody)))
+        // Act
+        MvcResult result = mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(loginBody)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").isNotEmpty())
-                .andExpect(jsonPath("$.username").value(username));
+                .andReturn();
+
+        // Assert
+        var json = objectMapper.readTree(result.getResponse().getContentAsString());
+        assertThat(json.get("token").asText()).isNotEmpty();
+        assertThat(json.get("username").asText()).isEqualTo(username);
     }
 
     @Test
-    @DisplayName("POST /api/auth/login - wrong password - returns 4xx error")
-    void login_wrongPassword_returnsErrorResponse() throws Exception {
+    @DisplayName("login - wrong password - returns 4xx (must never be 200)")
+    void login_wrongPassword_returns4xx() throws Exception {
         // Arrange
-        Map<String, String> body = new HashMap<>();
-        body.put("username", "student1");   // seeded in V2__seed_users.sql
-        body.put("password", "completelywrongpassword");
+        String s = UUID.randomUUID().toString().substring(0, 8);
+        registerAndLogin("user_" + s, s + "@test.com", "password123");
+        var loginBody = Map.of("username", "user_" + s, "password", "wrongPassword!");
 
-        // Act & Assert — a failed login must NEVER return 200
-        mockMvc.perform(post("/api/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(body)))
-                .andExpect(status().is4xxClientError());
+        // Act
+        int status = mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(loginBody)))
+                .andReturn().getResponse().getStatus();
+
+        // Assert
+        assertThat(status).isGreaterThanOrEqualTo(400).isLessThan(500);
     }
 
     @Test
-    @DisplayName("POST /api/auth/login - nonexistent user - same 4xx response class as wrong password")
-    void login_nonexistentUser_returnsSameErrorClassAsWrongPassword() throws Exception {
+    @DisplayName("login - nonexistent user - same 4xx class as wrong password (no user enumeration)")
+    void login_nonexistentUser_returns4xxSameAsWrongPassword() throws Exception {
         // Arrange
-        Map<String, String> body = new HashMap<>();
-        body.put("username", "userDoesNotExist");
-        body.put("password", "password123");
+        var loginBody = Map.of("username", "ghost_" + UUID.randomUUID().toString().substring(0, 8), "password", "password123");
 
-        // Act & Assert — SECURITY: must not reveal that the username doesn't exist
-        mockMvc.perform(post("/api/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(body)))
-                .andExpect(status().is4xxClientError());
+        // Act
+        int status = mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(loginBody)))
+                .andReturn().getResponse().getStatus();
+
+        // Assert
+        assertThat(status).isGreaterThanOrEqualTo(400).isLessThan(500);
     }
 }
