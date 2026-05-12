@@ -7,6 +7,7 @@ import client from '../../../lib/client'
 const COLORS = ['DEFAULT', 'PINK', 'RED', 'ORANGE', 'YELLOW', 'GREEN', 'TEAL', 'BLUE', 'PURPLE', 'GRAY']
 
 interface Category { id: string; title: string; description?: string; color: string; status: string; parentId?: string }
+interface SubCategory { id: string; title: string; color: string; status: string }
 
 export default function CategoryEditPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -16,20 +17,29 @@ export default function CategoryEditPage({ params }: { params: Promise<{ id: str
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
+  const [subcategories, setSubcategories] = useState<SubCategory[]>([])
+  const [newSubTitle, setNewSubTitle] = useState('')
+  const [subcatError, setSubcatError] = useState('')
+  const [addingSubcat, setAddingSubcat] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
+
   useEffect(() => {
     client.get<Category>(`/categories/${id}`).then(r => {
       const c = r.data
-      setForm({
-        title: c.title,
-        description: c.description ?? '',
-        color: c.color,
-        status: c.status,
-      })
+      setForm({ title: c.title, description: c.description ?? '', color: c.color, status: c.status })
     }).catch(() => router.push('/categories'))
 
     client.get<Category[]>('/categories').then(r =>
       setCategories(r.data.filter(c => c.id !== id))
     ).catch(() => {})
+
+    client.get<SubCategory[]>(`/categories/${id}/children`)
+      .then(r => setSubcategories(r.data))
+      .catch(() => {})
+
+    client.get('/users/me')
+      .then(r => setIsAdmin(r.data.roles?.includes('ROLE_ADMIN') ?? false))
+      .catch(() => {})
   }, [id, router])
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
@@ -54,6 +64,38 @@ export default function CategoryEditPage({ params }: { params: Promise<{ id: str
       setError(msg || 'Save failed')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function addSubcat() {
+    if (!newSubTitle.trim()) return
+    setAddingSubcat(true); setSubcatError('')
+    try {
+      const res = await client.post<SubCategory>('/categories', {
+        title: newSubTitle.trim(),
+        color: 'DEFAULT',
+        status: 'ACTIVE',
+        parentId: id,
+      })
+      setSubcategories(s => [...s, res.data])
+      setNewSubTitle('')
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      setSubcatError(msg || 'Failed to add subcategory')
+    } finally {
+      setAddingSubcat(false)
+    }
+  }
+
+  async function removeSubcat(subcatId: string) {
+    if (!confirm('Delete this subcategory?')) return
+    setSubcatError('')
+    try {
+      await client.delete(`/categories/${subcatId}`)
+      setSubcategories(s => s.filter(sub => sub.id !== subcatId))
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      setSubcatError(msg || 'Failed to remove subcategory')
     }
   }
 
@@ -86,10 +128,59 @@ export default function CategoryEditPage({ params }: { params: Promise<{ id: str
             </select>
 
             <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
-              <button style={saveBtn} type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+              <button
+                style={{ ...saveBtn, opacity: saving ? 0.7 : 1, cursor: saving ? 'not-allowed' : 'pointer' }}
+                type="submit"
+                disabled={saving}
+              >
+                {saving ? 'Saving…' : 'Save'}
+              </button>
               <button style={cancelBtn} type="button" onClick={() => router.push('/categories')}>Cancel</button>
             </div>
           </form>
+        </div>
+
+        <div style={{ ...card, marginTop: 20 }}>
+          <h2 style={{ margin: '0 0 4px', fontSize: 18 }}>Subcategories</h2>
+          <p style={{ margin: '0 0 16px', fontSize: 13, color: '#6b7280' }}>
+            {isAdmin ? 'You can add and remove subcategories.' : 'You can add subcategories.'}
+          </p>
+          {subcatError && <div style={errorBox}>{subcatError}</div>}
+
+          {subcategories.length === 0 ? (
+            <p style={muted}>No subcategories yet.</p>
+          ) : (
+            subcategories.map(s => (
+              <div key={s.id} style={subRow}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: s.color === 'DEFAULT' ? '#d1d5db' : s.color.toLowerCase(), display: 'inline-block', border: '1px solid #e5e7eb' }} />
+                  <span style={{ fontSize: 14 }}>{s.title}</span>
+                  {s.status === 'INACTIVE' && <span style={inactiveBadge}>Inactive</span>}
+                </div>
+                {isAdmin && (
+                  <button style={removeBtn} type="button" onClick={() => removeSubcat(s.id)}>×</button>
+                )}
+              </div>
+            ))
+          )}
+
+          <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+            <input
+              style={{ ...inp, flex: 1 }}
+              placeholder="New subcategory name"
+              value={newSubTitle}
+              onChange={e => setNewSubTitle(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addSubcat() } }}
+            />
+            <button
+              style={{ ...addBtn, opacity: addingSubcat ? 0.7 : 1, cursor: addingSubcat ? 'not-allowed' : 'pointer' }}
+              type="button"
+              onClick={addSubcat}
+              disabled={addingSubcat}
+            >
+              {addingSubcat ? 'Adding…' : 'Add'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -104,3 +195,8 @@ const inp: React.CSSProperties = { width: '100%', padding: '9px 12px', border: '
 const errorBox: React.CSSProperties = { background: '#fef2f2', color: '#dc2626', padding: '10px 14px', borderRadius: 6, fontSize: 13, marginBottom: 12 }
 const saveBtn: React.CSSProperties = { padding: '9px 22px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 6, fontSize: 14, fontWeight: 600, cursor: 'pointer' }
 const cancelBtn: React.CSSProperties = { padding: '9px 18px', background: 'none', color: '#6b7280', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14, cursor: 'pointer' }
+const muted: React.CSSProperties = { color: '#9ca3af', fontSize: 14 }
+const subRow: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #f3f4f6' }
+const inactiveBadge: React.CSSProperties = { background: '#f3f4f6', color: '#6b7280', padding: '1px 7px', borderRadius: 10, fontSize: 11 }
+const removeBtn: React.CSSProperties = { background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', fontSize: 18, padding: '0 4px', lineHeight: 1 }
+const addBtn: React.CSSProperties = { padding: '9px 20px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 6, fontSize: 14, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }

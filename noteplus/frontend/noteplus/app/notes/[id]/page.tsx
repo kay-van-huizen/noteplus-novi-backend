@@ -6,7 +6,8 @@ import Nav from '../../components/Nav'
 import client from '../../../lib/client'
 
 interface Note { id: string; title: string; content: string; categoryTitle?: string; createdAt: string }
-interface Attachment { id: string; fileName: string; contentType: string; size: number; createdAt: string }
+interface FileAttachment { id: string; fileName: string; contentType: string; size: number }
+interface Reference { id: string; title: string; fileAttachment: FileAttachment | null }
 
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`
@@ -18,7 +19,7 @@ export default function NoteDetailPage({ params }: { params: Promise<{ id: strin
   const { id } = use(params)
   const router = useRouter()
   const [note, setNote] = useState<Note | null>(null)
-  const [attachments, setAttachments] = useState<Attachment[]>([])
+  const [references, setReferences] = useState<Reference[]>([])
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
@@ -31,8 +32,8 @@ export default function NoteDetailPage({ params }: { params: Promise<{ id: strin
   }, [id, router])
 
   function loadAttachments() {
-    client.get<Attachment[]>(`/notes/${id}/attachments`)
-      .then(r => setAttachments(r.data))
+    client.get<Reference[]>(`/notes/${id}/references`)
+      .then(r => setReferences(r.data.filter(ref => ref.fileAttachment != null)))
       .catch(() => {})
   }
 
@@ -42,12 +43,11 @@ export default function NoteDetailPage({ params }: { params: Promise<{ id: strin
     if (!file) return
     setUploading(true)
     setUploadError('')
-    const formData = new FormData()
-    formData.append('file', file)
     try {
-      await client.post(`/notes/${id}/attachments`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
+      const refRes = await client.post(`/notes/${id}/references`, { title: 'Attachment' })
+      const fd = new FormData()
+      fd.append('file', file)
+      await client.post(`/notes/${id}/references/${refRes.data.id}/attachment`, fd)
       if (fileRef.current) fileRef.current.value = ''
       loadAttachments()
     } catch (err: unknown) {
@@ -58,14 +58,14 @@ export default function NoteDetailPage({ params }: { params: Promise<{ id: strin
     }
   }
 
-  async function handleDelete(attachmentId: string) {
+  async function handleDelete(referenceId: string) {
     if (!confirm('Delete this attachment?')) return
-    await client.delete(`/notes/${id}/attachments/${attachmentId}`)
+    await client.delete(`/notes/${id}/references/${referenceId}`)
     loadAttachments()
   }
 
-  function handleDownload(attachmentId: string, fileName: string) {
-    client.get(`/notes/${id}/attachments/${attachmentId}/download`, { responseType: 'blob' })
+  function handleDownload(referenceId: string, fileName: string) {
+    client.get(`/notes/${id}/references/${referenceId}/attachment`, { responseType: 'blob' })
       .then(r => {
         const url = URL.createObjectURL(r.data as Blob)
         const a = document.createElement('a')
@@ -82,7 +82,6 @@ export default function NoteDetailPage({ params }: { params: Promise<{ id: strin
     <div style={pageWrap}>
       <Nav />
       <div style={content}>
-        {/* Note card */}
         <div style={card}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
@@ -94,23 +93,27 @@ export default function NoteDetailPage({ params }: { params: Promise<{ id: strin
           <p style={{ marginTop: 20, whiteSpace: 'pre-wrap', lineHeight: 1.7, color: '#374151' }}>{note.content}</p>
         </div>
 
-        {/* Attachments */}
         <div style={{ ...card, marginTop: 20 }}>
           <h2 style={{ margin: '0 0 16px', fontSize: 18 }}>Attachments</h2>
 
-          {attachments.length === 0 && <p style={muted}>No attachments yet.</p>}
-          {attachments.map(a => (
-            <div key={a.id} style={attachRow}>
-              <div>
-                <span style={{ fontWeight: 500, fontSize: 14 }}>{a.fileName}</span>
-                <span style={{ color: '#9ca3af', fontSize: 12, marginLeft: 8 }}>{formatBytes(a.size)}</span>
+          {references.length === 0 && <p style={muted}>No attachments yet.</p>}
+          {references.map(ref => {
+            const fa = ref.fileAttachment!
+            return (
+              <div key={ref.id} style={attachRow}>
+                <div>
+                  <span style={{ fontWeight: 500, fontSize: 14 }}>{fa.fileName}</span>
+                  <span style={{ color: '#9ca3af', fontSize: 12, marginLeft: 8 }}>{formatBytes(fa.size)}</span>
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button style={dlBtn} onClick={() => handleDownload(ref.id, fa.fileName)}>
+                    Download attachment
+                  </button>
+                  <button style={delBtnSm} onClick={() => handleDelete(ref.id)}>Delete</button>
+                </div>
               </div>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button style={dlBtn} onClick={() => handleDownload(a.id, a.fileName)}>Download</button>
-                <button style={delBtnSm} onClick={() => handleDelete(a.id)}>Delete</button>
-              </div>
-            </div>
-          ))}
+            )
+          })}
 
           <form onSubmit={handleUpload} style={{ marginTop: 16, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <input ref={fileRef} type="file" style={{ fontSize: 13 }} required />
