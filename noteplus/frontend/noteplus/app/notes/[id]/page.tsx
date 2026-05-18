@@ -5,7 +5,15 @@ import { useRouter } from 'next/navigation'
 import Nav from '../../components/Nav'
 import client from '../../../lib/client'
 
-interface Note { id: string; title: string; content: string; categoryTitle?: string; createdAt: string }
+interface Note {
+  id: string
+  title: string
+  content: string
+  ownerUsername: string
+  categoryTitle?: string
+  createdAt: string
+  updatedAt: string
+}
 interface FileAttachment { id: string; fileName: string; contentType: string; size: number }
 interface Reference { id: string; title: string; fileAttachment: FileAttachment | null }
 
@@ -15,11 +23,20 @@ function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString(undefined, {
+    year: 'numeric', month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  })
+}
+
 export default function NoteDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
   const [note, setNote] = useState<Note | null>(null)
   const [references, setReferences] = useState<Reference[]>([])
+  const [loading, setLoading] = useState(true)
+  const [notFound, setNotFound] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
@@ -27,7 +44,14 @@ export default function NoteDetailPage({ params }: { params: Promise<{ id: strin
   useEffect(() => {
     client.get<Note>(`/notes/${id}`)
       .then(r => setNote(r.data))
-      .catch(() => router.push('/notes'))
+      .catch(err => {
+        if (err.response?.status === 404 || err.response?.status === 403) {
+          setNotFound(true)
+        } else {
+          router.push('/notes')
+        }
+      })
+      .finally(() => setLoading(false))
     loadAttachments()
   }, [id, router])
 
@@ -58,7 +82,7 @@ export default function NoteDetailPage({ params }: { params: Promise<{ id: strin
     }
   }
 
-  async function handleDelete(referenceId: string) {
+  async function handleDeleteRef(referenceId: string) {
     if (!confirm('Delete this attachment?')) return
     await client.delete(`/notes/${id}/references/${referenceId}`)
     loadAttachments()
@@ -76,23 +100,68 @@ export default function NoteDetailPage({ params }: { params: Promise<{ id: strin
       })
   }
 
-  if (!note) return <div style={pageWrap}><Nav /><div style={content}><p style={muted}>Loading…</p></div></div>
+  if (loading) {
+    return (
+      <div style={pageWrap}>
+        <Nav />
+        <div style={content}><p style={muted}>Loading…</p></div>
+      </div>
+    )
+  }
+
+  if (notFound || !note) {
+    return (
+      <div style={pageWrap}>
+        <Nav />
+        <div style={content}>
+          <div style={card}>
+            <p style={{ fontSize: 16, fontWeight: 600, margin: '0 0 8px', color: '#374151' }}>Note not found</p>
+            <p style={{ ...muted, margin: '0 0 16px' }}>
+              This note may have been deleted or you do not have access to it.
+            </p>
+            <Link href="/notes" style={{ fontSize: 13, color: '#2563eb' }}>← Back to notes</Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={pageWrap}>
       <Nav />
       <div style={content}>
+        {/* Note card */}
         <div style={card}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <h1 style={{ margin: '0 0 4px', fontSize: 22 }}>{note.title}</h1>
-              {note.categoryTitle && <span style={categoryBadge}>{note.categoryTitle}</span>}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <h1 style={{ margin: '0 0 6px', fontSize: 22, wordBreak: 'break-word' }}>{note.title}</h1>
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+                {note.categoryTitle && <span style={categoryBadge}>{note.categoryTitle}</span>}
+              </div>
+              <p style={meta}>
+                By <strong>{note.ownerUsername}</strong>
+                <span style={metaDot}>·</span>
+                Created {formatDate(note.createdAt)}
+                {note.updatedAt !== note.createdAt && (
+                  <>
+                    <span style={metaDot}>·</span>
+                    Updated {formatDate(note.updatedAt)}
+                  </>
+                )}
+              </p>
             </div>
-            <Link href={`/notes/${id}/edit`}><button style={editBtn}>Edit</button></Link>
+            <Link href={`/notes/${id}/edit`} style={{ marginLeft: 16, flexShrink: 0 }}>
+              <button style={editBtn}>Edit</button>
+            </Link>
           </div>
-          <p style={{ marginTop: 20, whiteSpace: 'pre-wrap', lineHeight: 1.7, color: '#374151' }}>{note.content}</p>
+
+          <div style={divider} />
+          <p style={{ whiteSpace: 'pre-wrap', lineHeight: 1.75, color: '#374151', margin: 0 }}>
+            {note.content}
+          </p>
         </div>
 
+        {/* Attachments */}
         <div style={{ ...card, marginTop: 20 }}>
           <h2 style={{ margin: '0 0 16px', fontSize: 18 }}>Attachments</h2>
 
@@ -109,7 +178,7 @@ export default function NoteDetailPage({ params }: { params: Promise<{ id: strin
                   <button style={dlBtn} onClick={() => handleDownload(ref.id, fa.fileName)}>
                     Download attachment
                   </button>
-                  <button style={delBtnSm} onClick={() => handleDelete(ref.id)}>Delete</button>
+                  <button style={delBtnSm} onClick={() => handleDeleteRef(ref.id)}>Delete</button>
                 </div>
               </div>
             )
@@ -136,6 +205,9 @@ const pageWrap: React.CSSProperties = { minHeight: '100vh', background: '#f5f5f5
 const content: React.CSSProperties = { maxWidth: 760, margin: '0 auto', padding: '32px 16px' }
 const card: React.CSSProperties = { background: 'white', borderRadius: 8, padding: '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.1)' }
 const muted: React.CSSProperties = { color: '#9ca3af', fontSize: 14 }
+const meta: React.CSSProperties = { color: '#6b7280', fontSize: 13, margin: '8px 0 0' }
+const metaDot: React.CSSProperties = { margin: '0 6px', color: '#d1d5db' }
+const divider: React.CSSProperties = { height: 1, background: '#f3f4f6', margin: '20px 0' }
 const categoryBadge: React.CSSProperties = { background: '#e0e7ff', color: '#3730a3', padding: '2px 8px', borderRadius: 10, fontSize: 12 }
 const attachRow: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #f3f4f6' }
 const editBtn: React.CSSProperties = { padding: '6px 16px', background: '#f3f4f6', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }

@@ -46,6 +46,19 @@ export default function NoteForm({ id }: { id?: string }) {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
+  function handleDownload(referenceId: string, fileName: string) {
+    if (!id) return
+    client.get(`/notes/${id}/references/${referenceId}/attachment`, { responseType: 'blob' })
+      .then(r => {
+        const url = URL.createObjectURL(r.data as Blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = fileName
+        a.click()
+        URL.revokeObjectURL(url)
+      })
+  }
+
   async function uploadFileToNote(noteId: string) {
     if (!file) return
     const refRes = await client.post(`/notes/${noteId}/references`, { title: 'Attachment' })
@@ -112,9 +125,15 @@ export default function NoteForm({ id }: { id?: string }) {
 
             <label style={label}>Attach file</label>
             {existingRefs.length > 0 && (
-              <div style={{ marginBottom: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              <div style={{ marginBottom: 8 }}>
                 {existingRefs.map(r => (
-                  <span key={r.id} style={existingFileBadge}>{r.fileAttachment!.fileName}</span>
+                  <div key={r.id} style={existingRefRow}>
+                    <span style={existingFileBadge}>{r.fileAttachment!.fileName}</span>
+                    <button type="button" style={dlBtnInline}
+                      onClick={() => handleDownload(r.id, r.fileAttachment!.fileName)}>
+                      Download attachment
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
@@ -159,6 +178,8 @@ const successBox: React.CSSProperties = { background: '#f0fdf4', color: '#16a34a
 const saveBtn: React.CSSProperties = { padding: '9px 22px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 6, fontSize: 14, fontWeight: 600, cursor: 'pointer' }
 const delBtn: React.CSSProperties = { padding: '9px 18px', background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: 6, fontSize: 14, cursor: 'pointer' }
 const cancelBtn: React.CSSProperties = { padding: '9px 18px', background: 'none', color: '#6b7280', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14, cursor: 'pointer' }
+const existingRefRow: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }
 const existingFileBadge: React.CSSProperties = { background: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0', padding: '3px 10px', borderRadius: 12, fontSize: 12 }
+const dlBtnInline: React.CSSProperties = { padding: '4px 12px', background: '#e0e7ff', color: '#3730a3', border: 'none', borderRadius: 5, fontSize: 12, cursor: 'pointer' }
 const fileChip: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 6, background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 12, padding: '4px 10px' }
 const chipRemoveBtn: React.CSSProperties = { background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', fontSize: 14, padding: 0, lineHeight: 1 }
