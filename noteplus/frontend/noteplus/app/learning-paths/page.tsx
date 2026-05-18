@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import Nav from '../components/Nav'
 import client from '../../lib/client'
 
@@ -101,7 +102,12 @@ export default function LearningPathsPage() {
                 </div>
                 {p.description && <p style={{ margin: '4px 0 0', color: '#6b7280', fontSize: 13 }}>{p.description}</p>}
               </div>
-              <button style={delBtn} onClick={() => handleDelete(p.id)}>Delete</button>
+              <div style={{ display: 'flex', gap: 8, marginLeft: 16 }}>
+                <Link href={`/learning-paths/${p.id}/edit`}>
+                  <button style={editBtn}>Edit</button>
+                </Link>
+                <button style={delBtn} onClick={() => handleDelete(p.id)}>Delete</button>
+              </div>
             </div>
           ))}
         </div>
@@ -120,4 +126,5 @@ const fieldErr: React.CSSProperties = { color: '#dc2626', fontSize: 12, margin: 
 const addBtn: React.CSSProperties = { padding: '9px 20px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 6, fontSize: 14, fontWeight: 600, cursor: 'pointer', alignSelf: 'flex-start' }
 const muted: React.CSSProperties = { color: '#9ca3af', fontSize: 14 }
 const row: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '16px 0', borderBottom: '1px solid #f3f4f6' }
-const delBtn: React.CSSProperties = { padding: '5px 14px', background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: 5, fontSize: 13, cursor: 'pointer', marginLeft: 16 }
+const editBtn: React.CSSProperties = { padding: '5px 14px', background: '#e0e7ff', color: '#3730a3', border: 'none', borderRadius: 5, fontSize: 13, cursor: 'pointer' }
+const delBtn: React.CSSProperties = { padding: '5px 14px', background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: 5, fontSize: 13, cursor: 'pointer' }

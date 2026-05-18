@@ -7,24 +7,31 @@ export default function SettingsPage() {
   const [form, setForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [loading, setLoading] = useState(false)
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     setForm(f => ({ ...f, [e.target.name]: e.target.value }))
   }
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault(); setError(''); setSuccess('')
+    e.preventDefault()
+    setError('')
+    setSuccess('')
     if (form.newPassword !== form.confirmPassword) { setError('Passwords do not match'); return }
+    setLoading(true)
     try {
       await client.put('/users/me/password', {
         currentPassword: form.currentPassword,
         newPassword: form.newPassword,
+        confirmPassword: form.confirmPassword,
       })
       setSuccess('Password changed successfully.')
       setForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
       setError(msg || 'Failed to change password')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -48,7 +55,13 @@ export default function SettingsPage() {
                   value={form[name]} onChange={handleChange} required minLength={8} />
               </div>
             ))}
-            <button style={btn} type="submit">Update password</button>
+            <button
+              style={{ ...btn, opacity: loading ? 0.7 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
+              type="submit"
+              disabled={loading}
+            >
+              {loading ? 'Updating…' : 'Update password'}
+            </button>
           </form>
         </div>
       </div>

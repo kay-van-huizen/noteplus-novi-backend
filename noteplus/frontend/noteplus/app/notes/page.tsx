@@ -45,6 +45,7 @@ export default function NotesPage() {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8, marginLeft: 16 }}>
+                <Link href={`/notes/${note.id}`}><button style={viewBtn}>View</button></Link>
                 <Link href={`/notes/${note.id}/edit`}><button style={editBtn}>Edit</button></Link>
                 <button style={delBtn} onClick={() => deleteNote(note.id)}>Delete</button>
               </div>
@@ -63,5 +64,6 @@ const muted: React.CSSProperties = { color: '#9ca3af', padding: '16px 0' }
 const row: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '16px 0', borderBottom: '1px solid #f3f4f6' }
 const badge: React.CSSProperties = { marginLeft: 8, background: '#e0e7ff', color: '#3730a3', padding: '2px 8px', borderRadius: 10, fontSize: 11 }
 const addBtn: React.CSSProperties = { padding: '9px 18px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 6, fontSize: 14, fontWeight: 600, cursor: 'pointer' }
+const viewBtn: React.CSSProperties = { padding: '6px 14px', background: '#e0e7ff', color: '#3730a3', border: 'none', borderRadius: 5, fontSize: 13, cursor: 'pointer' }
 const editBtn: React.CSSProperties = { padding: '6px 14px', background: '#f3f4f6', color: '#374151', border: 'none', borderRadius: 5, fontSize: 13, cursor: 'pointer' }
 const delBtn: React.CSSProperties = { padding: '6px 14px', background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: 5, fontSize: 13, cursor: 'pointer' }
