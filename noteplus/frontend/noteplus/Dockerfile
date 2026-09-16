@@ -1,9 +1,11 @@
+# syntax=docker/dockerfile:1
 # ---------- Build stage ----------
-FROM node:20-alpine AS build
+FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS build
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
 
 COPY . .
 
@@ -13,15 +15,26 @@ ENV BACKEND_URL=$BACKEND_URL
 RUN npm run build
 
 # ---------- Runtime stage ----------
-FROM node:20-alpine
+FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293
 WORKDIR /app
 ENV NODE_ENV=production
 
-COPY --from=build /app/public ./public
-COPY --from=build /app/.next ./.next
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/package.json ./package.json
-COPY --from=build /app/next.config.ts ./next.config.ts
+# node:alpine ships a built-in non-root "node" user (uid/gid 1000) - use it
+# instead of running the server as root.
+RUN mkdir -p .next/static && chown -R node:node .
 
+# output: 'standalone' (next.config.ts) traces only the deps actually needed
+# at runtime into .next/standalone/node_modules - no npm ci / full
+# node_modules copy needed here, which is what kept devDependencies
+# (typescript, eslint, tailwind, ...) out of the runtime image.
+COPY --from=build --chown=node:node /app/public ./public
+COPY --from=build --chown=node:node /app/.next/standalone ./
+COPY --from=build --chown=node:node /app/.next/static ./.next/static
+
+USER node
 EXPOSE 3000
-CMD ["npm", "start"]
+
+HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=5 \
+    CMD node -e "fetch('http://localhost:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
+CMD ["node", "server.js"]
