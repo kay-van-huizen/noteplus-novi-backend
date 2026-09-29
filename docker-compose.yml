@@ -1,0 +1,67 @@
+services:
+  postgres:
+    image: postgres:16-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
+    container_name: noteplus-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: Noteplus
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      # bound to loopback only - no reason for the DB port to be reachable
+      # from outside this host
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - noteplus-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d Noteplus"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./noteplus
+    container_name: noteplus-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/Noteplus
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      APP_JWT_SECRET: ${JWT_SECRET}
+      SPRING_MAIL_USERNAME: ${MAILTRAP_USERNAME}
+      SPRING_MAIL_PASSWORD: ${MAILTRAP_PASSWORD}
+      APP_BASE_URL: http://localhost:3000
+    ports:
+    # port redirect van 8081 naar 8080
+      - "8080:8080"
+    volumes:
+      - noteplus-uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/v3/api-docs"]
+      interval: 10s
+      timeout: 3s
+      start_period: 30s
+      retries: 5
+
+  frontend:
+    build:
+      context: ./noteplus/frontend/noteplus
+      args:
+        BACKEND_URL: http://backend:8080
+    container_name: noteplus-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      BACKEND_URL: http://backend:8080
+    ports:
+      - "3000:3000"
+
+volumes:
+  noteplus-pgdata:
+  noteplus-uploads:
